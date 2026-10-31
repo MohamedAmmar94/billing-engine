@@ -1,0 +1,66 @@
+services:
+    billing_engine_app:
+        build:
+            context: .
+            # كدا docker هيستخدم Dockerfile الموجود في مجلد المشروع
+            dockerfile: docker/php/Dockerfile
+        container_name: billing_engine_app
+        image: billing_engine_app_image
+        volumes:
+            - .:/var/www/html
+            - ./vendor:/var/www/html/vendor
+            - ./node_modules:/var/www/html/node_modules
+            - ./storage:/var/www/html/storage
+        ports:
+            - "8000:80" # بيفتح Apache على بورت 8000
+        # depends_on:
+        #     - billing_engine_db
+        #     - billing_engine_redis
+        depends_on:
+            billing_engine_db:
+                condition: service_healthy
+            billing_engine_redis:
+                condition: service_started
+    billing_engine_db:
+        image: postgres:17
+        container_name: billing_engine_db
+        environment:
+            POSTGRES_DB: billing_engine
+            POSTGRES_USER: root
+            POSTGRES_PASSWORD: password
+        ports:
+            - "5432:5432"
+        volumes:
+            - billing_engine_db_data:/var/lib/postgresql/data
+            - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U root -d billing_engine"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+    pgadmin:
+        image: dpage/pgadmin4
+        container_name: billing_engine_pgadmin
+        environment:
+            PGADMIN_DEFAULT_EMAIL: admin@admin.com
+            PGADMIN_DEFAULT_PASSWORD: password
+            PGADMIN_CONFIG_SERVER_MODE: "False"
+            PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+        volumes:
+            - ./docker/pgadmin/servers.json:/pgadmin4/servers.json
+            - pgadmin_data:/var/lib/pgadmin
+        ports:
+            - "8080:80"
+        depends_on:
+            - billing_engine_db
+    billing_engine_redis:
+        image: redis:alpine
+        container_name: billing_engine_redis
+        volumes:
+            - billing_engine_redis_data:/data
+        # restart: always
+
+volumes:
+    billing_engine_db_data:
+    billing_engine_redis_data:
+    pgadmin_data:

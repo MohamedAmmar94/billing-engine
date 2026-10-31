@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "billing engine DB",
+      "Group": "Servers",
+      "Host": "billing_engine_db",
+      "Port": 5432,
+      "MaintenanceDB": "billing_engine",
+      "Username": "root",
+      "PasswordExec": "password",
+      "SSLMode": "prefer"
+    }
+  }
+}
