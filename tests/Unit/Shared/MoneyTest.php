@@ -1,0 +1,228 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Shared\Money\Currency;
+use App\Shared\Money\CurrencyMismatchException;
+use App\Shared\Money\Money;
+
+// php artisan test tests/Unit/Shared/MoneyTest.php
+
+it('stores the amount in minor units together with its currency', function () {
+    $money = Money::of(1050, Currency::EGP);
+
+    expect($money->amount)->toBe(1050)
+        ->and($money->currency)->toBe(Currency::EGP);
+});
+
+it('is equal to another money with the same amount and currency', function () {
+    expect(Money::of(100, Currency::EGP)->equals(Money::of(100, Currency::EGP)))->toBeTrue();
+});
+
+it('is not equal when the amount differs', function () {
+    expect(Money::of(100, Currency::EGP)->equals(Money::of(101, Currency::EGP)))->toBeFalse();
+});
+
+it('is not equal when the currency differs', function () {
+    expect(Money::of(100, Currency::EGP)->equals(Money::of(100, Currency::USD)))->toBeFalse();
+});
+
+it('rejects float amounts instead of silently converting them', function () {
+    Money::of(10.5, Currency::EGP);
+})->throws(TypeError::class);
+
+it('adds amounts in the same currency', function () {
+    $result = Money::of(1050, Currency::EGP)->add(Money::of(250, Currency::EGP));
+
+    expect($result->amount)->toBe(1300)
+        ->and($result->currency)->toBe(Currency::EGP);
+});
+
+it('subtracts amounts in the same currency', function () {
+    $result = Money::of(1050, Currency::EGP)->subtract(Money::of(250, Currency::EGP));
+
+    expect($result->amount)->toBe(800);
+});
+
+it('allows a negative result when subtracting', function () {
+    $result = Money::of(100, Currency::EGP)->subtract(Money::of(250, Currency::EGP));
+
+    expect($result->amount)->toBe(-150);
+});
+
+it('does not change the original when adding (immutability)', function () {
+    $original = Money::of(100, Currency::EGP);
+
+    $original->add(Money::of(50, Currency::EGP));
+
+    expect($original->amount)->toBe(100);
+});
+
+it('refuses to add different currencies', function () {
+    Money::of(100, Currency::EGP)->add(Money::of(100, Currency::USD));
+})->throws(CurrencyMismatchException::class);
+
+it('refuses to subtract different currencies', function () {
+    Money::of(100, Currency::EGP)->subtract(Money::of(100, Currency::USD));
+})->throws(CurrencyMismatchException::class);
+
+it('creates a zero amount', function () {
+    $zero = Money::zero(Currency::USD);
+
+    expect($zero->amount)->toBe(0)
+        ->and($zero->currency)->toBe(Currency::USD);
+});
+
+it('multiplies by an integer factor', function () {
+    expect(Money::of(250, Currency::EGP)->multiply(3)->amount)->toBe(750);
+});
+
+it('negates an amount', function () {
+    expect(Money::of(250, Currency::EGP)->negate()->amount)->toBe(-250)
+        ->and(Money::of(-250, Currency::EGP)->negate()->amount)->toBe(250);
+});
+
+it('compares amounts in the same currency', function () {
+    $small = Money::of(100, Currency::EGP);
+    $big = Money::of(200, Currency::EGP);
+
+    expect($big->greaterThan($small))->toBeTrue()
+        ->and($small->greaterThan($big))->toBeFalse()
+        ->and($small->greaterThan($small))->toBeFalse()
+        ->and($small->lessThan($big))->toBeTrue()
+        ->and($big->lessThan($small))->toBeFalse();
+});
+
+it('refuses to compare different currencies', function () {
+    Money::of(100, Currency::EGP)->greaterThan(Money::of(100, Currency::USD));
+})->throws(CurrencyMismatchException::class);
+
+it('knows whether it is zero, positive or negative', function (int $amount, bool $zero, bool $positive, bool $negative) {
+    $money = Money::of($amount, Currency::EGP);
+
+    expect($money->isZero())->toBe($zero)
+        ->and($money->isPositive())->toBe($positive)
+        ->and($money->isNegative())->toBe($negative);
+})->with([
+    'zero' => [0, true, false, false],
+    'positive' => [5, false, true, false],
+    'negative' => [-5, false, false, true],
+]);
+
+it('calculates basis-point percentages rounding half away from zero', function (int $amount, int $bp, int $expected) {
+    expect(Money::of($amount, Currency::EGP)->percentage($bp)->amount)->toBe($expected);
+})->with([
+    '14% of 10.50 is exact' => [1050, 1400, 147],
+    '14% of 0.99 is 13.86 so rounds up' => [99, 1400, 14],
+    '10% of 0.04 is 0.4 so rounds down' => [4, 1000, 0],
+    '10% of 0.05 is exactly half so rounds up' => [5, 1000, 1],
+    'negative half rounds away from zero' => [-5, 1000, -1],
+    'negative below half rounds toward zero' => [-4, 1000, 0],
+    '100% is the same amount' => [1234, 10000, 1234],
+    '0% is zero' => [1234, 0, 0],
+    'zero stays zero' => [0, 1400, 0],
+]);
+it('keeps the currency when calculating a percentage', function () {
+    expect(Money::of(1000, Currency::USD)->percentage(1400)->currency)->toBe(Currency::USD);
+});
+it('splits 1.00 EGP between 3 people without losing a piastre', function () {
+    $parts = Money::of(100, Currency::EGP)->split(3);
+
+    expect(array_map(fn (Money $m): int => $m->amount, $parts))->toBe([34, 33, 33]);
+});
+
+it('allocates by ratios', function () {
+    $parts = Money::of(100, Currency::EGP)->allocate(70, 30);
+
+    expect(array_map(fn (Money $m): int => $m->amount, $parts))->toBe([70, 30]);
+});
+
+it('gives the leftover to the first parts', function () {
+    $parts = Money::of(101, Currency::EGP)->allocate(70, 30);
+
+    expect(array_map(fn (Money $m): int => $m->amount, $parts))->toBe([71, 30]);
+});
+
+it('can allocate fewer minor units than parts', function () {
+    $parts = Money::of(1, Currency::EGP)->split(3);
+
+    expect(array_map(fn (Money $m): int => $m->amount, $parts))->toBe([1, 0, 0]);
+});
+
+it('allocates negative amounts symmetrically', function () {
+    $parts = Money::of(-100, Currency::EGP)->split(3);
+
+    expect(array_map(fn (Money $m): int => $m->amount, $parts))->toBe([-34, -33, -33]);
+});
+
+it('gives nothing to a zero ratio, even when there is a leftover', function () {
+    $parts = Money::of(101, Currency::EGP)->allocate(1, 0, 1);
+
+    expect(array_map(fn (Money $m): int => $m->amount, $parts))->toBe([51, 0, 50]);
+});
+
+it('keeps the currency in every part', function () {
+    $parts = Money::of(100, Currency::USD)->split(2);
+
+    expect($parts[0]->currency)->toBe(Currency::USD)
+        ->and($parts[1]->currency)->toBe(Currency::USD);
+});
+
+it('never loses or creates a single minor unit when allocating (1000 random cases)', function () {
+    mt_srand(42); // seed ثابت: لو فشل، نعيد نفس الحالة بالظبط
+
+    for ($i = 0; $i < 1000; $i++) {
+        $amount = mt_rand(-1_000_000, 1_000_000);
+        $ratios = array_map(fn () => mt_rand(0, 100), range(1, mt_rand(1, 7)));
+
+        if (array_sum($ratios) === 0) {
+            continue;
+        }
+
+        $parts = Money::of($amount, Currency::EGP)->allocate(...$ratios);
+
+        expect(array_sum(array_map(fn (Money $m): int => $m->amount, $parts)))->toBe($amount);
+    }
+});
+
+it('rejects invalid allocation ratios', function (array $ratios) {
+    Money::of(100, Currency::EGP)->allocate(...$ratios);
+})->with([
+    'no ratios' => [[]],
+    'negative ratio' => [[1, -1]],
+    'all zero' => [[0, 0]],
+])->throws(InvalidArgumentException::class);
+
+it('rejects splitting into fewer than one part', function (int $parts) {
+    Money::of(100, Currency::EGP)->split($parts);
+})->with([0, -1])->throws(InvalidArgumentException::class);
+it('fails clearly when addition overflows', function () {
+    Money::of(PHP_INT_MAX, Currency::EGP)->add(Money::of(1, Currency::EGP));
+})->throws(OverflowException::class);
+
+it('fails clearly when subtraction overflows', function () {
+    Money::of(-PHP_INT_MAX, Currency::EGP)->subtract(Money::of(2, Currency::EGP));
+})->throws(OverflowException::class);
+
+it('fails clearly when multiplication overflows', function () {
+    Money::of(PHP_INT_MAX, Currency::EGP)->multiply(2);
+})->throws(OverflowException::class);
+
+it('fails clearly when a percentage overflows', function () {
+    Money::of(PHP_INT_MAX, Currency::EGP)->percentage(2);
+})->throws(OverflowException::class);
+
+it('rejects the smallest integer because its absolute value does not fit', function () {
+    Money::of(PHP_INT_MIN, Currency::EGP);
+})->throws(OverflowException::class);
+
+it('formats a decimal string for display', function (int $amount, Currency $currency, string $expected) {
+    expect(Money::of($amount, $currency)->toDecimalString())->toBe($expected);
+})->with([
+    'whole amount' => [1050, Currency::EGP, '10.50'],
+    'less than one unit' => [5, Currency::EGP, '0.05'],
+    'negative less than one unit' => [-5, Currency::EGP, '-0.05'],
+    'negative amount' => [-1050, Currency::EGP, '-10.50'],
+    'zero' => [0, Currency::USD, '0.00'],
+    'currency without minor units' => [500, Currency::JPY, '500'],
+]);
