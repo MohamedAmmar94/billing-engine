@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# لو رفعت commit جديد على نفس الـ branch، الشغل القديم بيتلغي
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Lint, static analysis & tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # PostgreSQL حقيقية (نفس اللي بنشتغل عليها)، مش SQLite
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: billing_engine_testing
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U root -d billing_engine_testing"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    # بتغلب على قيم phpunit.xml (اللي فيها اسم الـ host بتاع Docker)
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: billing_engine_testing
+      DB_USERNAME: root
+      DB_PASSWORD: password
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, pdo_pgsql, bcmath, pcntl
+          coverage: none
+          tools: composer:v2
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare application
+        run: cp .env.example .env && php artisan key:generate
+
+      - name: Code style (Pint)
+        run: composer lint
+
+      - name: Static analysis (Larastan)
+        run: composer analyse
+
+      - name: Tests (Pest)
+        run: composer test
