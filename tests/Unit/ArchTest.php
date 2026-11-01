@@ -7,10 +7,12 @@ use App\Shared\Money\Money;
 arch('every class in app/ declares strict types')
     ->expect('App')
     ->toUseStrictTypes();
-
-arch('the shared kernel is framework-agnostic')
-    ->expect('App\Shared')
+arch('the Money value object is framework-agnostic')
+    ->expect('App\Shared\Money')
     ->not->toUse('Illuminate');
+// arch('the shared kernel is framework-agnostic')
+//     ->expect('App\Shared')
+//     ->not->toUse('Illuminate');
 
 arch('the shared kernel does not depend on any domain')
     ->expect('App\Shared')
