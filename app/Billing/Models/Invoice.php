@@ -23,19 +23,17 @@ class Invoice extends Model
         'issued_at', 'due_at', 'paid_at',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'status' => InvoiceStatus::class,
-            'issued_at' => 'datetime',
-            'due_at' => 'datetime',
-            'paid_at' => 'datetime',
-            'subtotal' => 'integer',
-            'tax_rate_bp' => 'integer',
-            'tax_amount' => 'integer',
-            'total' => 'integer',
-        ];
-    }
+    /** @var array<string, string> */
+    protected $casts = [
+        'status' => InvoiceStatus::class,
+        'issued_at' => 'datetime',
+        'due_at' => 'datetime',
+        'paid_at' => 'datetime',
+        'subtotal' => 'integer',
+        'tax_rate_bp' => 'integer',
+        'tax_amount' => 'integer',
+        'total' => 'integer',
+    ];
 
     /** @return BelongsTo<Customer, $this> */
     public function customer(): BelongsTo

@@ -18,14 +18,11 @@ class PaymentLink extends Model
         'invoice_id', 'attempt', 'stripe_session_id', 'url', 'status', 'expires_at',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'status' => PaymentLinkStatus::class,
-            'expires_at' => 'datetime',
-            'attempt' => 'integer',
-        ];
-    }
+    protected $casts = [
+        'status' => PaymentLinkStatus::class,
+        'expires_at' => 'datetime',
+        'attempt' => 'integer',
+    ];
 
     /** @return BelongsTo<Invoice, $this> */
     public function invoice(): BelongsTo

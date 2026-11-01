@@ -18,10 +18,8 @@ class JournalEntry extends Model
         'posted_at', 'description', 'currency', 'source_type', 'source_id', 'event',
     ];
 
-    protected function casts(): array
-    {
-        return ['posted_at' => 'datetime'];
-    }
+    /** @var array<string, string> */
+    protected $casts = ['posted_at' => 'datetime'];
 
     /** @return HasMany<JournalLine, $this> */
     public function lines(): HasMany

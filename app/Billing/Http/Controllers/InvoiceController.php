@@ -51,17 +51,23 @@ final class InvoiceController
         /** @var User $staff */
         $staff = $request->user();
 
-        $requested = collect($request->validated('items'));
+        /** @var list<array{product: string, quantity: int|string}> $requested */
+        $requested = $request->validated('items');
 
         $customer = Customer::query()->where('uuid', $request->validated('customer'))->firstOrFail();
-        $products = Product::query()->whereIn('uuid', $requested->pluck('product'))->get()->keyBy('uuid');
 
-        $items = $requested
-            ->map(fn (array $item): array => [
+        $products = Product::query()
+            ->whereIn('uuid', array_column($requested, 'product'))
+            ->get()
+            ->keyBy('uuid');
+
+        $items = array_map(
+            fn (array $item): array => [
                 'product' => $products[$item['product']],
                 'quantity' => (int) $item['quantity'],
-            ])
-            ->all();
+            ],
+            $requested,
+        );
 
         $invoice = $createInvoice->handle($customer, $staff, $items);
 

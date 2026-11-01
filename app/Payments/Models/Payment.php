@@ -18,14 +18,12 @@ class Payment extends Model
         'amount', 'currency', 'is_applied', 'paid_at',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'amount' => 'integer',
-            'is_applied' => 'boolean',
-            'paid_at' => 'datetime',
-        ];
-    }
+    /** @var array<string, string> */
+    protected $casts = [
+        'amount' => 'integer',
+        'is_applied' => 'boolean',
+        'paid_at' => 'datetime',
+    ];
 
     /** @return BelongsTo<Invoice, $this> */
     public function invoice(): BelongsTo

@@ -13,8 +13,14 @@ final class InvoiceResource extends JsonResource
     /**
      * المبالغ أعداد صحيحة بالوحدة الصغرى (سنت). ومفيش أي id داخلي بيخرج.
      */
+    /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
+        /**
+         * المبالغ أعداد صحيحة بالوحدة الصغرى (سنت). ومفيش أي id داخلي بيخرج.
+         *
+         * @return array<string, mixed>
+         */
         /** @var Invoice $invoice */
         $invoice = $this->resource;
 

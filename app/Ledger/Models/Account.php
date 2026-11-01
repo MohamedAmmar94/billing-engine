@@ -19,14 +19,12 @@ class Account extends Model
         'code', 'name', 'type', 'normal_side', 'currency', 'is_postable', 'parent_id',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'type' => AccountType::class,
-            'normal_side' => NormalSide::class,
-            'is_postable' => 'boolean',
-        ];
-    }
+    /** @var array<string, string> */
+    protected $casts = [
+        'type' => AccountType::class,
+        'normal_side' => NormalSide::class,
+        'is_postable' => 'boolean',
+    ];
 
     /** @return BelongsTo<Account, $this> */
     public function parent(): BelongsTo
