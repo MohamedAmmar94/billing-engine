@@ -13,8 +13,6 @@ class Product extends Model
 
     protected $fillable = ['sku', 'name', 'unit_price', 'currency', 'is_active'];
 
-    protected function casts(): array
-    {
-        return ['unit_price' => 'integer', 'is_active' => 'boolean'];
-    }
+    /** @var array<string, string> */
+    protected $casts = ['unit_price' => 'integer', 'is_active' => 'boolean'];
 }

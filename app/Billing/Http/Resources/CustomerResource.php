@@ -10,6 +10,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 final class CustomerResource extends JsonResource
 {
+    /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
         /** @var Customer $customer */
