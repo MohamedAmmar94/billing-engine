@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace App\Billing\Models;
 
@@ -13,7 +13,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Invoice extends Model {
+class Invoice extends Model
+{
     use HasPublicUuid;
 
     protected $fillable = [
@@ -22,44 +23,52 @@ class Invoice extends Model {
         'issued_at', 'due_at', 'paid_at',
     ];
 
-    protected function casts(): array {
+    protected function casts(): array
+    {
         return [
-            'status'      => InvoiceStatus::class,
-            'issued_at'   => 'datetime',
-            'due_at'      => 'datetime',
-            'paid_at'     => 'datetime',
-            'subtotal'    => 'integer',
+            'status' => InvoiceStatus::class,
+            'issued_at' => 'datetime',
+            'due_at' => 'datetime',
+            'paid_at' => 'datetime',
+            'subtotal' => 'integer',
             'tax_rate_bp' => 'integer',
-            'tax_amount'  => 'integer',
-            'total'       => 'integer',
+            'tax_amount' => 'integer',
+            'total' => 'integer',
         ];
     }
 
     /** @return BelongsTo<Customer, $this> */
-    public function customer(): BelongsTo {
+    public function customer(): BelongsTo
+    {
         return $this->belongsTo(Customer::class);
     }
 
     /** @return BelongsTo<User, $this> */
-    public function creator(): BelongsTo {
+    public function creator(): BelongsTo
+    {
         return $this->belongsTo(User::class, 'created_by');
     }
 
     /** @return HasMany<InvoiceItem, $this> */
-    public function items(): HasMany {
+    public function items(): HasMany
+    {
         return $this->hasMany(InvoiceItem::class);
     }
 
     /** @return HasMany<PaymentLink, $this> */
-    public function paymentLinks(): HasMany {
+    public function paymentLinks(): HasMany
+    {
         return $this->hasMany(PaymentLink::class);
     }
 
     /** @return HasMany<Payment, $this> */
-    public function payments(): HasMany {
+    public function payments(): HasMany
+    {
         return $this->hasMany(Payment::class);
     }
-    public function lockedCopy(): self {
+
+    public function lockedCopy(): self
+    {
         return self::query()->whereKey($this->getKey())->lockForUpdate()->firstOrFail();
     }
 }

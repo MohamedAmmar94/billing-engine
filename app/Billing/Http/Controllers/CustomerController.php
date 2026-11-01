@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace App\Billing\Http\Controllers;
 
@@ -10,18 +10,22 @@ use App\Billing\Models\Customer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
-final class CustomerController {
-    public function index(): AnonymousResourceCollection {
+final class CustomerController
+{
+    public function index(): AnonymousResourceCollection
+    {
         return CustomerResource::collection(Customer::query()->latest('id')->paginate(25));
     }
 
-    public function store(StoreCustomerRequest $request): JsonResponse {
+    public function store(StoreCustomerRequest $request): JsonResponse
+    {
         $customer = Customer::query()->create($request->validated());
 
         return CustomerResource::make($customer)->response()->setStatusCode(201);
     }
 
-    public function show(Customer $customer): CustomerResource {
+    public function show(Customer $customer): CustomerResource
+    {
         return CustomerResource::make($customer);
     }
 }

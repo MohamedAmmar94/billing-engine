@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 use App\Billing\Actions\CreateInvoice;
 use App\Billing\Actions\DiscardDraftInvoice;
@@ -27,21 +27,21 @@ it('only allows the agreed status transitions', function (InvoiceStatus $from, I
     expect($from->canTransitionTo($to))->toBe($allowed);
 })->with([
     'draft to open' => [InvoiceStatus::Draft, InvoiceStatus::Open, true],
-    'open to paid'  => [InvoiceStatus::Open, InvoiceStatus::Paid, true],
-    'open to void'  => [InvoiceStatus::Open, InvoiceStatus::Void, true],
+    'open to paid' => [InvoiceStatus::Open, InvoiceStatus::Paid, true],
+    'open to void' => [InvoiceStatus::Open, InvoiceStatus::Void, true],
     'draft to paid' => [InvoiceStatus::Draft, InvoiceStatus::Paid, false],
     'draft to void' => [InvoiceStatus::Draft, InvoiceStatus::Void, false],
     'open to draft' => [InvoiceStatus::Open, InvoiceStatus::Draft, false],
-    'paid to void'  => [InvoiceStatus::Paid, InvoiceStatus::Void, false],
-    'paid to open'  => [InvoiceStatus::Paid, InvoiceStatus::Open, false],
-    'void to open'  => [InvoiceStatus::Void, InvoiceStatus::Open, false],
-    'void to paid'  => [InvoiceStatus::Void, InvoiceStatus::Paid, false],
+    'paid to void' => [InvoiceStatus::Paid, InvoiceStatus::Void, false],
+    'paid to open' => [InvoiceStatus::Paid, InvoiceStatus::Open, false],
+    'void to open' => [InvoiceStatus::Void, InvoiceStatus::Open, false],
+    'void to paid' => [InvoiceStatus::Void, InvoiceStatus::Paid, false],
 ]);
 
 // ---------- الإنشاء (draft) ----------
 
 it('creates a draft invoice with totals copied from the products', function () {
-    $staff    = makeStaff();
+    $staff = makeStaff();
     $customer = makeCustomer();
 
     $invoice = app(CreateInvoice::class)->handle($customer, $staff, [
@@ -77,10 +77,10 @@ it('keeps the copied price when the product price changes later', function () {
 
 it('rejects invalid invoice input', function (string $case) {
     $items = match ($case) {
-        'no items'          => [],
-        'zero quantity'     => [['product' => makeProduct(), 'quantity' => 0]],
+        'no items' => [],
+        'zero quantity' => [['product' => makeProduct(), 'quantity' => 0]],
         'negative quantity' => [['product' => makeProduct(), 'quantity' => -2]],
-        'inactive product'  => [['product' => makeProduct(active: false), 'quantity' => 1]],
+        'inactive product' => [['product' => makeProduct(active: false), 'quantity' => 1]],
     };
 
     app(CreateInvoice::class)->handle(makeCustomer(), makeStaff(), $items);
@@ -117,13 +117,13 @@ it('opens a draft: number, dates and event', function () {
 
     Event::assertDispatched(
         InvoiceOpened::class,
-        fn(InvoiceOpened $event): bool => $event->invoice->is($opened),
+        fn (InvoiceOpened $event): bool => $event->invoice->is($opened),
     );
 });
 
 it('gives consecutive numbers to consecutive invoices', function () {
     $numbers = collect(range(1, 3))
-        ->map(fn() => app(OpenInvoice::class)->handle(draftInvoice())->number)
+        ->map(fn () => app(OpenInvoice::class)->handle(draftInvoice())->number)
         ->all();
 
     expect($numbers)->toBe(['INV-000001', 'INV-000002', 'INV-000003']);
@@ -136,7 +136,7 @@ it('gives the number back when opening fails halfway (no gaps)', function () {
         throw new RuntimeException('listener failed');
     });
 
-    expect(fn() => app(OpenInvoice::class)->handle($invoice))
+    expect(fn () => app(OpenInvoice::class)->handle($invoice))
         ->toThrow(RuntimeException::class, 'listener failed');
 
     expect((int) DB::table('sequences')->where('name', 'invoice')->value('last_value'))->toBe(0)
@@ -174,7 +174,7 @@ it('refuses to void an invoice that is not open', function (InvoiceStatus $statu
 
     app(VoidInvoice::class)->handle($invoice);
 })->with([
-    'draft'        => [InvoiceStatus::Draft],
-    'paid'         => [InvoiceStatus::Paid],
+    'draft' => [InvoiceStatus::Draft],
+    'paid' => [InvoiceStatus::Paid],
     'already void' => [InvoiceStatus::Void],
 ])->throws(InvoiceStateException::class);

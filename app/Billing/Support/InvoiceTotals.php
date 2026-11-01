@@ -1,12 +1,13 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace App\Billing\Support;
 
 use App\Shared\Money\Money;
 
-final readonly class InvoiceTotals {
+final readonly class InvoiceTotals
+{
     public function __construct(
         public Money $subtotal,
         public Money $tax,

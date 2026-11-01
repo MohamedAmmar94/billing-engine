@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace App\Billing\Support;
 
@@ -8,11 +8,13 @@ use Illuminate\Support\Facades\DB;
 use LogicException;
 use RuntimeException;
 
-final class InvoiceNumberGenerator {
+final class InvoiceNumberGenerator
+{
     /**
      * لازم تتندهش جوه transaction: القفل بيتفك عند آخرها، ولو فشلت الرقم بيرجع.
      */
-    public function next(): string {
+    public function next(): string
+    {
         if (DB::transactionLevel() === 0) {
             throw new LogicException('Invoice numbers must be generated inside a transaction.');
         }
