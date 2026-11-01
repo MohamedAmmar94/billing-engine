@@ -1,0 +1,29 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Billing\Models;
+
+use App\Shared\Concerns\HasPublicUuid;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class InvoiceItem extends Model
+{
+    use HasPublicUuid;
+
+    protected $fillable = [
+        'invoice_id', 'product_id', 'description', 'quantity', 'unit_price', 'line_total',
+    ];
+
+    /** @return BelongsTo<Invoice, $this> */
+    protected function casts(): array
+    {
+        return ['quantity' => 'integer', 'unit_price' => 'integer', 'line_total' => 'integer'];
+    }
+
+    public function invoice(): BelongsTo
+    {
+        return $this->belongsTo(Invoice::class);
+    }
+}
