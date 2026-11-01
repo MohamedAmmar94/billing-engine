@@ -1,0 +1,25 @@
+@host = http://localhost:8000/api/v1
+
+### Login (admin@example.com موجود بعد migrate:fresh --seed في local)
+# @name login
+POST {{host}}/auth/token
+Content-Type: application/json
+Accept: application/json
+
+{ "email": "admin@example.com", "password": "password", "device_name": "http-file" }
+
+###
+@token = {{login.response.body.token}}
+
+### Create a customer
+POST {{host}}/customers
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{ "name": "Acme Corp", "email": "billing@acme.test" }
+
+### List products (copy a product id from here)
+GET {{host}}/products
+Authorization: Bearer {{token}}
+Accept: application/json

@@ -184,10 +184,12 @@ payouts, automatic reminders, credit notes.
 
 ## 8. Implementation status
 
-| Step                                      | Status                |
-| ----------------------------------------- | --------------------- |
-| 4.1 - 4.3 Customers, invoices, open, void | In progress (Phase 1) |
-| 4.4 - 4.6 Pay URL and payment links       | Phase 2               |
-| 4.7 Webhooks                              | Phase 3               |
-| Journal entries (section 5)               | Phase 4               |
-| 4.8 Refunds                               | Phase 5               |
+| Step                                                                                | Status            |
+| ----------------------------------------------------------------------------------- | ----------------- |
+| 4.1 - 4.3 Customers, products, invoices: create, open, void, discard (domain + API) | ✅ Done (Phase 1) |
+| Staff authentication with API tokens                                                | ✅ Done (Phase 1) |
+| Idempotency-Key on invoice creation                                                 | Phase 2           |
+| 4.4 - 4.6 Pay URL and payment links                                                 | Phase 2           |
+| 4.7 Webhooks                                                                        | Phase 3           |
+| Journal entries (section 5)                                                         | Phase 4           |
+| 4.8 Refunds                                                                         | Phase 5           |
