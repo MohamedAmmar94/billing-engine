@@ -4,44 +4,44 @@ declare(strict_types=1);
 
 namespace App\Payments\Actions;
 
-use App\Billing\Enums\InvoiceStatus;
+use App\Billing\Enums\InvoiceStatusEnum;
 use App\Billing\Models\Invoice;
-use App\Payments\Enums\PaymentLinkStatus;
-use App\Payments\Gateway\CheckoutSessionRequest;
-use App\Payments\Gateway\CheckoutSessionStatus;
+use App\Payments\Enums\PaymentLinkStatusEnum;
+use App\Payments\Gateway\CheckoutSessionRequestDTO;
+use App\Payments\Gateway\CheckoutSessionStatusEnum;
 use App\Payments\Gateway\GatewayException;
 use App\Payments\Gateway\GatewayTimeoutException;
-use App\Payments\Gateway\PaymentGateway;
-use App\Payments\Jobs\ExpireCheckoutSession;
+use App\Payments\Gateway\PaymentGatewayInterface;
+use App\Payments\Jobs\ExpireCheckoutSessionJob;
 use App\Payments\Models\PaymentLink;
-use App\Payments\Support\PayResolution;
-use App\Shared\Money\Currency;
+use App\Payments\Support\PayResolutionDTO;
+use App\Shared\Money\CurrencyEnum;
 use App\Shared\Money\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
-final class ResolvePaymentLink
+final class ResolvePaymentLinkAction
 {
     private const MAX_ROUNDS = 3;
 
-    public function __construct(private readonly PaymentGateway $gateway) {}
+    public function __construct(private readonly PaymentGatewayInterface $gateway) {}
 
-    public function handle(Invoice $invoice): PayResolution
+    public function handle(Invoice $invoice): PayResolutionDTO
     {
         for ($round = 0; $round < self::MAX_ROUNDS; $round++) {
             try {
                 $step = $this->decide($invoice);
             } catch (UniqueConstraintViolationException) {
                 // شبكة أمان: الـ DB رفضت لينك حي تاني (الـ lock المفروض يمنع ده أصلاً)
-                return PayResolution::tryAgain();
+                return PayResolutionDTO::tryAgain();
             }
 
-            if ($step instanceof PayResolution) {
+            if ($step instanceof PayResolutionDTO) {
                 return $step;
             }
 
-            if ($step->status === PaymentLinkStatus::Pending) {
+            if ($step->status === PaymentLinkStatusEnum::Pending) {
                 return $this->openAtGateway($invoice, $step);
             }
 
@@ -53,34 +53,34 @@ final class ResolvePaymentLink
             // اللينك القديم اتقفل، نلف تاني وندي العميل لينك جديد
         }
 
-        return PayResolution::tryAgain();
+        return PayResolutionDTO::tryAgain();
     }
 
     /**
      * المرحلة 1: قرار من الـ DB بس (بدون شبكة) تحت lock على الفاتورة.
      */
-    private function decide(Invoice $invoice): PayResolution|PaymentLink
+    private function decide(Invoice $invoice): PayResolutionDTO|PaymentLink
     {
-        return DB::transaction(function () use ($invoice): PayResolution|PaymentLink {
+        return DB::transaction(function () use ($invoice): PayResolutionDTO|PaymentLink {
             $invoice = $invoice->lockedCopy();
 
-            if ($invoice->status === InvoiceStatus::Paid) {
-                return PayResolution::alreadyPaid();
+            if ($invoice->status === InvoiceStatusEnum::Paid) {
+                return PayResolutionDTO::alreadyPaid();
             }
 
-            if ($invoice->status !== InvoiceStatus::Open) {
-                return PayResolution::notPayable();
+            if ($invoice->status !== InvoiceStatusEnum::Open) {
+                return PayResolutionDTO::notPayable();
             }
 
             $live = $invoice->paymentLinks()
-                ->whereIn('status', PaymentLinkStatus::liveValues())
+                ->whereIn('status', PaymentLinkStatusEnum::liveValues())
                 ->first();
 
             if ($live === null) {
                 return $this->newPendingLink($invoice);
             }
 
-            if ($live->status === PaymentLinkStatus::Open) {
+            if ($live->status === PaymentLinkStatusEnum::Open) {
                 return $live;
             }
 
@@ -90,7 +90,7 @@ final class ResolvePaymentLink
             ) ?? false;
 
             if ($isRecent) {
-                return PayResolution::tryAgain();
+                return PayResolutionDTO::tryAgain();
             }
 
             $tooCloseToExpiry = $live->expires_at->lessThanOrEqualTo(
@@ -98,7 +98,7 @@ final class ResolvePaymentLink
             );
 
             if ($tooCloseToExpiry) {
-                $live->update(['status' => PaymentLinkStatus::Canceled]);
+                $live->update(['status' => PaymentLinkStatusEnum::Canceled]);
 
                 return $this->newPendingLink($invoice);
             }
@@ -113,7 +113,7 @@ final class ResolvePaymentLink
 
         return $invoice->paymentLinks()->create([
             'attempt' => $attempt,
-            'status' => PaymentLinkStatus::Pending,
+            'status' => PaymentLinkStatusEnum::Pending,
             'expires_at' => now()->addMinutes(config()->integer('payments.link_ttl_minutes')),
         ]);
     }
@@ -121,10 +121,10 @@ final class ResolvePaymentLink
     /**
      * المرحلة 2 و3 لصف pending: نكلم Stripe (من غير lock) وبعدين نسجل النتيجة.
      */
-    private function openAtGateway(Invoice $invoice, PaymentLink $link): PayResolution
+    private function openAtGateway(Invoice $invoice, PaymentLink $link): PayResolutionDTO
     {
-        $request = new CheckoutSessionRequest(
-            amount: Money::of($invoice->total, Currency::from($invoice->currency)),
+        $request = new CheckoutSessionRequestDTO(
+            amount: Money::of($invoice->total, CurrencyEnum::from($invoice->currency)),
             description: 'Invoice '.(string) $invoice->number,
             clientReferenceId: $link->uuid,
             idempotencyKey: "invoice-{$invoice->uuid}-link-{$link->attempt}",
@@ -139,34 +139,34 @@ final class ResolvePaymentLink
             // النتيجة مجهولة: نسيب الصف pending، والمحاولة الجاية بنفس المفتاح تكمّل
             report($e);
 
-            return PayResolution::tryAgain();
+            return PayResolutionDTO::tryAgain();
         } catch (GatewayException $e) {
             // رفض نهائي: نحرر مكان اللينك الحي
             report($e);
-            $link->update(['status' => PaymentLinkStatus::Canceled]);
+            $link->update(['status' => PaymentLinkStatusEnum::Canceled]);
 
-            return PayResolution::unavailable();
+            return PayResolutionDTO::unavailable();
         }
 
-        return DB::transaction(function () use ($invoice, $link, $session): PayResolution {
+        return DB::transaction(function () use ($invoice, $link, $session): PayResolutionDTO {
             $invoice->lockedCopy(); // نفس ترتيب الـ locks دايماً: الفاتورة ثم اللينك
             $fresh = PaymentLink::query()->whereKey($link->getKey())->lockForUpdate()->firstOrFail();
 
-            if ($fresh->status !== PaymentLinkStatus::Pending) {
+            if ($fresh->status !== PaymentLinkStatusEnum::Pending) {
                 // الفاتورة اتلغت وإحنا بنكلم Stripe: نقفل الـ session اللي اتعملت
-                ExpireCheckoutSession::dispatch($session->id)->afterCommit();
+                ExpireCheckoutSessionJob::dispatch($session->id)->afterCommit();
 
-                return PayResolution::notPayable();
+                return PayResolutionDTO::notPayable();
             }
 
             $fresh->update([
                 'stripe_session_id' => $session->id,
                 'url' => $session->url,
-                'status' => PaymentLinkStatus::Open,
+                'status' => PaymentLinkStatusEnum::Open,
                 'expires_at' => $session->expiresAt,
             ]);
 
-            return PayResolution::redirect((string) $session->url);
+            return PayResolutionDTO::redirect((string) $session->url);
         });
     }
 
@@ -174,31 +174,31 @@ final class ResolvePaymentLink
      * لينك مفتوح عندنا: نسأل Stripe عن الحقيقة قبل ما نديه للعميل.
      * بيرجّع null لو قفلنا اللينك القديم وعاوزين نلف تاني لإنشاء جديد.
      */
-    private function verifyOpenLink(Invoice $invoice, PaymentLink $link): ?PayResolution
+    private function verifyOpenLink(Invoice $invoice, PaymentLink $link): ?PayResolutionDTO
     {
         try {
             $session = $this->gateway->retrieveCheckoutSession((string) $link->stripe_session_id);
         } catch (GatewayException $e) {
             report($e);
 
-            return PayResolution::tryAgain();
+            return PayResolutionDTO::tryAgain();
         }
 
-        if ($session->status === CheckoutSessionStatus::Complete) {
+        if ($session->status === CheckoutSessionStatusEnum::Complete) {
             // الدفع حصل والـ webhook لسه ما وصلش: ما نعملش لينك جديد
-            return PayResolution::processing();
+            return PayResolutionDTO::processing();
         }
 
         $minutesLeft = now()->diffInMinutes($link->expires_at, false);
         $enoughTime = $minutesLeft > config()->integer('payments.link_min_remaining_minutes');
 
-        if ($session->status === CheckoutSessionStatus::Open && $enoughTime) {
-            return PayResolution::redirect((string) $link->url);
+        if ($session->status === CheckoutSessionStatusEnum::Open && $enoughTime) {
+            return PayResolutionDTO::redirect((string) $link->url);
         }
 
-        $retiredAs = PaymentLinkStatus::Expired;
+        $retiredAs = PaymentLinkStatusEnum::Expired;
 
-        if ($session->status === CheckoutSessionStatus::Open) {
+        if ($session->status === CheckoutSessionStatusEnum::Open) {
             // لسه مفتوح بس قرّب ينتهي: إحنا اللي بنقفله
             try {
                 $this->gateway->expireCheckoutSession($session->id);
@@ -206,10 +206,10 @@ final class ResolvePaymentLink
                 // غالباً اتدفع في اللحظة دي: الزيارة الجاية هتشوف الحقيقة
                 report($e);
 
-                return PayResolution::tryAgain();
+                return PayResolutionDTO::tryAgain();
             }
 
-            $retiredAs = PaymentLinkStatus::Canceled;
+            $retiredAs = PaymentLinkStatusEnum::Canceled;
         }
 
         $this->retire($invoice, $link, $retiredAs);
@@ -217,13 +217,13 @@ final class ResolvePaymentLink
         return null;
     }
 
-    private function retire(Invoice $invoice, PaymentLink $link, PaymentLinkStatus $as): void
+    private function retire(Invoice $invoice, PaymentLink $link, PaymentLinkStatusEnum $as): void
     {
         DB::transaction(function () use ($invoice, $link, $as): void {
             $invoice->lockedCopy();
             $fresh = PaymentLink::query()->whereKey($link->getKey())->lockForUpdate()->firstOrFail();
 
-            if ($fresh->status === PaymentLinkStatus::Open) {
+            if ($fresh->status === PaymentLinkStatusEnum::Open) {
                 $fresh->update(['status' => $as]);
             }
         });

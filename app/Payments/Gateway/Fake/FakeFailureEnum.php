@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Payments\Gateway\Fake;
 
-enum FakeFailure: string
+enum FakeFailureEnum: string
 {
     case TimeoutBeforeEffect = 'timeout_before_effect';
     case TimeoutAfterEffect = 'timeout_after_effect';

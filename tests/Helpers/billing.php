@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Billing\Actions\CreateInvoice;
-use App\Billing\Actions\OpenInvoice;
+use App\Billing\Actions\CreateInvoiceAction;
+use App\Billing\Actions\OpenInvoiceAction;
 use App\Billing\Models\Customer;
 use App\Billing\Models\Invoice;
 use App\Billing\Models\Product;
@@ -35,7 +35,7 @@ function makeProduct(int $unitPrice = 10000, bool $active = true): Product
 
 function draftInvoice(int $unitPrice = 10000): Invoice
 {
-    return app(CreateInvoice::class)->handle(
+    return app(CreateInvoiceAction::class)->handle(
         makeCustomer(),
         makeStaff(),
         [['product' => makeProduct($unitPrice), 'quantity' => 1]],
@@ -43,5 +43,5 @@ function draftInvoice(int $unitPrice = 10000): Invoice
 }
 function openInvoice(int $unitPrice = 10000): Invoice
 {
-    return app(OpenInvoice::class)->handle(draftInvoice($unitPrice));
+    return app(OpenInvoiceAction::class)->handle(draftInvoice($unitPrice));
 }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Shared\Money;
 
-enum Currency: string
+enum CurrencyEnum: string
 {
     case EGP = 'EGP';
     case USD = 'USD';

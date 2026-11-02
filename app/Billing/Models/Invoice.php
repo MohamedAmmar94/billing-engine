@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Billing\Models;
 
-use App\Billing\Enums\InvoiceStatus;
+use App\Billing\Enums\InvoiceStatusEnum;
 use App\Models\User;
 use App\Payments\Models\Payment;
 use App\Payments\Models\PaymentLink;
@@ -25,7 +25,7 @@ class Invoice extends Model
 
     /** @var array<string, string> */
     protected $casts = [
-        'status' => InvoiceStatus::class,
+        'status' => InvoiceStatusEnum::class,
         'issued_at' => 'datetime',
         'due_at' => 'datetime',
         'paid_at' => 'datetime',

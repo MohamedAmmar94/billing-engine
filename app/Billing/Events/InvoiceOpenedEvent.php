@@ -6,7 +6,7 @@ namespace App\Billing\Events;
 
 use App\Billing\Models\Invoice;
 
-final readonly class InvoiceOpened
+final readonly class InvoiceOpenedEvent
 {
     public function __construct(public Invoice $invoice) {}
 }

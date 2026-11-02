@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Ledger\Enums;
 
-enum AccountType: string
+enum AccountTypeEnum: string
 {
     case Asset = 'asset';
     case Liability = 'liability';

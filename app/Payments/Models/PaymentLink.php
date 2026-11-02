@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Payments\Models;
 
 use App\Billing\Models\Invoice;
-use App\Payments\Enums\PaymentLinkStatus;
+use App\Payments\Enums\PaymentLinkStatusEnum;
 use App\Shared\Concerns\HasPublicUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,7 +19,7 @@ class PaymentLink extends Model
     ];
 
     protected $casts = [
-        'status' => PaymentLinkStatus::class,
+        'status' => PaymentLinkStatusEnum::class,
         'expires_at' => 'datetime',
         'attempt' => 'integer',
     ];

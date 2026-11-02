@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ledger\Models;
 
-use App\Ledger\Enums\AccountType;
-use App\Ledger\Enums\NormalSide;
+use App\Ledger\Enums\AccountTypeEnum;
+use App\Ledger\Enums\NormalSideEnum;
 use App\Shared\Concerns\HasPublicUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,8 +21,8 @@ class Account extends Model
 
     /** @var array<string, string> */
     protected $casts = [
-        'type' => AccountType::class,
-        'normal_side' => NormalSide::class,
+        'type' => AccountTypeEnum::class,
+        'normal_side' => NormalSideEnum::class,
         'is_postable' => 'boolean',
     ];
 

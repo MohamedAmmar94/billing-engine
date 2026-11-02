@@ -6,7 +6,7 @@ namespace App\Billing\Support;
 
 use App\Shared\Money\Money;
 
-final readonly class InvoiceTotals
+final readonly class InvoiceTotalsDTO
 {
     public function __construct(
         public Money $subtotal,
