@@ -28,6 +28,8 @@ days after an invoice was issued, and a payment attempt can be abandoned.
 - (+) `payments` rows are all real money: one entry each in the ledger, direct comparison with Stripe in reconciliation.
 - (-) Opening the pay URL can trigger an external call; it is rate limited.
 - (-) Late payments on dead links need explicit handling (`is_applied`, Unapplied Payments).
+- (-) The pay URL is a `GET` with a side effect. Email security scanners may open it;
+  the one-live-link rule and rate limiting keep this harmless (the same link is reused).
 
 ## Alternatives considered
 
