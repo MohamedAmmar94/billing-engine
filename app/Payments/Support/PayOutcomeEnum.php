@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Payments\Support;
 
-enum PayOutcome
+enum PayOutcomeEnum
 {
     case Redirect;
     case AlreadyPaid;

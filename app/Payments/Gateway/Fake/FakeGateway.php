@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Payments\Gateway\Fake;
 
-use App\Payments\Gateway\CheckoutSession;
-use App\Payments\Gateway\CheckoutSessionRequest;
-use App\Payments\Gateway\CheckoutSessionStatus;
+use App\Payments\Gateway\CheckoutSessionDTO;
+use App\Payments\Gateway\CheckoutSessionRequestDTO;
+use App\Payments\Gateway\CheckoutSessionStatusEnum;
 use App\Payments\Gateway\GatewayException;
 use App\Payments\Gateway\GatewayTimeoutException;
-use App\Payments\Gateway\PaymentGateway;
+use App\Payments\Gateway\PaymentGatewayInterface;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
 
@@ -21,19 +21,19 @@ use Illuminate\Support\Facades\Cache;
  * @phpstan-type SessionData array{id: string, url: string, status: string, expires_at: int, amount: int, client_reference_id: string}
  * @phpstan-type State array{counter: int, calls: array<string, int>, sessions: array<string, SessionData>, keys: array<string, string>, failures: array<string, list<string>>}
  */
-final class FakeGateway implements PaymentGateway
+final class FakeGateway implements PaymentGatewayInterface
 {
     private const STATE_KEY = 'fake-gateway:state';
 
-    public function createCheckoutSession(CheckoutSessionRequest $request): CheckoutSession
+    public function createCheckoutSession(CheckoutSessionRequestDTO $request): CheckoutSessionDTO
     {
         $failure = $this->begin('create');
 
-        if ($failure === FakeFailure::TimeoutBeforeEffect) {
+        if ($failure === FakeFailureEnum::TimeoutBeforeEffect) {
             throw new GatewayTimeoutException('Fake gateway: timed out before the session was created.');
         }
 
-        if ($failure === FakeFailure::Rejected) {
+        if ($failure === FakeFailureEnum::Rejected) {
             throw new GatewayException('Fake gateway: the request was rejected.');
         }
 
@@ -46,7 +46,7 @@ final class FakeGateway implements PaymentGateway
             $state['sessions'][$sessionId] = [
                 'id' => $sessionId,
                 'url' => 'https://checkout.fake/pay/'.$sessionId,
-                'status' => CheckoutSessionStatus::Open->value,
+                'status' => CheckoutSessionStatusEnum::Open->value,
                 'expires_at' => $request->expiresAt->getTimestamp(),
                 'amount' => $request->amount->amount,
                 'client_reference_id' => $request->clientReferenceId,
@@ -54,18 +54,18 @@ final class FakeGateway implements PaymentGateway
             $this->save($state);
         }
 
-        if ($failure === FakeFailure::TimeoutAfterEffect) {
+        if ($failure === FakeFailureEnum::TimeoutAfterEffect) {
             throw new GatewayTimeoutException('Fake gateway: the session exists but the response was lost.');
         }
 
         return $this->toSession($state['sessions'][$sessionId]);
     }
 
-    public function retrieveCheckoutSession(string $sessionId): CheckoutSession
+    public function retrieveCheckoutSession(string $sessionId): CheckoutSessionDTO
     {
         $failure = $this->begin('retrieve');
 
-        if ($failure === FakeFailure::Rejected) {
+        if ($failure === FakeFailureEnum::Rejected) {
             throw new GatewayException('Fake gateway: the request was rejected.');
         }
 
@@ -80,27 +80,27 @@ final class FakeGateway implements PaymentGateway
     {
         $failure = $this->begin('expire');
 
-        if ($failure === FakeFailure::Rejected) {
+        if ($failure === FakeFailureEnum::Rejected) {
             throw new GatewayException('Fake gateway: the request was rejected.');
         }
 
-        if ($failure === FakeFailure::TimeoutBeforeEffect) {
+        if ($failure === FakeFailureEnum::TimeoutBeforeEffect) {
             throw new GatewayTimeoutException('Fake gateway: timed out before the session was expired.');
         }
 
         $state = $this->state();
         $session = $this->toSession($this->sessionData($state, $sessionId));
 
-        if ($session->status === CheckoutSessionStatus::Complete) {
+        if ($session->status === CheckoutSessionStatusEnum::Complete) {
             throw new GatewayException('Fake gateway: a completed session cannot be expired.');
         }
 
-        if ($session->status === CheckoutSessionStatus::Open) {
-            $state['sessions'][$sessionId]['status'] = CheckoutSessionStatus::Expired->value;
+        if ($session->status === CheckoutSessionStatusEnum::Open) {
+            $state['sessions'][$sessionId]['status'] = CheckoutSessionStatusEnum::Expired->value;
             $this->save($state);
         }
 
-        if ($failure === FakeFailure::TimeoutAfterEffect) {
+        if ($failure === FakeFailureEnum::TimeoutAfterEffect) {
             throw new GatewayTimeoutException('Fake gateway: the session was expired but the response was lost.');
         }
     }
@@ -110,24 +110,24 @@ final class FakeGateway implements PaymentGateway
     /** العميل دفع على صفحة Stripe. */
     public function complete(string $sessionId): void
     {
-        $this->setStatus($sessionId, CheckoutSessionStatus::Complete);
+        $this->setStatus($sessionId, CheckoutSessionStatusEnum::Complete);
     }
 
     /** الـ session انتهت عند Stripe. */
     public function expire(string $sessionId): void
     {
-        $this->setStatus($sessionId, CheckoutSessionStatus::Expired);
+        $this->setStatus($sessionId, CheckoutSessionStatusEnum::Expired);
     }
 
     /** الاستدعاء الجاي لـ ($operation = create | retrieve | expire) هيفشل بالطريقة دي. */
-    public function failNext(string $operation, FakeFailure $failure): void
+    public function failNext(string $operation, FakeFailureEnum $failure): void
     {
         $state = $this->state();
         $state['failures'][$operation][] = $failure->value;
         $this->save($state);
     }
 
-    public function session(string $sessionId): CheckoutSession
+    public function session(string $sessionId): CheckoutSessionDTO
     {
         return $this->toSession($this->sessionData($this->state(), $sessionId));
     }
@@ -150,7 +150,7 @@ final class FakeGateway implements PaymentGateway
     // ---------- داخلي ----------
 
     /** بيسجّل الاستدعاء ويسحب الفشل المخطط له (لو فيه). */
-    private function begin(string $operation): ?FakeFailure
+    private function begin(string $operation): ?FakeFailureEnum
     {
         $state = $this->state();
         $state['calls'][$operation] = ($state['calls'][$operation] ?? 0) + 1;
@@ -161,10 +161,10 @@ final class FakeGateway implements PaymentGateway
 
         $this->save($state);
 
-        return $planned === null ? null : FakeFailure::from($planned);
+        return $planned === null ? null : FakeFailureEnum::from($planned);
     }
 
-    private function setStatus(string $sessionId, CheckoutSessionStatus $status): void
+    private function setStatus(string $sessionId, CheckoutSessionStatusEnum $status): void
     {
         $state = $this->state();
         $this->sessionData($state, $sessionId);
@@ -182,19 +182,19 @@ final class FakeGateway implements PaymentGateway
     }
 
     /** @param  SessionData  $data */
-    private function toSession(array $data): CheckoutSession
+    private function toSession(array $data): CheckoutSessionDTO
     {
         $expiresAt = CarbonImmutable::createFromTimestamp($data['expires_at']);
-        $status = CheckoutSessionStatus::from($data['status']);
+        $status = CheckoutSessionStatusEnum::from($data['status']);
 
         // الـ session المفتوحة بتنتهي لوحدها لما وقتها يعدي (زي Stripe)
-        if ($status === CheckoutSessionStatus::Open && $expiresAt->lessThanOrEqualTo(now())) {
-            $status = CheckoutSessionStatus::Expired;
+        if ($status === CheckoutSessionStatusEnum::Open && $expiresAt->lessThanOrEqualTo(now())) {
+            $status = CheckoutSessionStatusEnum::Expired;
         }
 
-        return new CheckoutSession(
+        return new CheckoutSessionDTO(
             id: $data['id'],
-            url: $status === CheckoutSessionStatus::Open ? $data['url'] : null,
+            url: $status === CheckoutSessionStatusEnum::Open ? $data['url'] : null,
             status: $status,
             expiresAt: $expiresAt,
         );

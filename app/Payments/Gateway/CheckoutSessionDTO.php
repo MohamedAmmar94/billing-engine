@@ -6,12 +6,12 @@ namespace App\Payments\Gateway;
 
 use Carbon\CarbonImmutable;
 
-final readonly class CheckoutSession
+final readonly class CheckoutSessionDTO
 {
     public function __construct(
         public string $id,
         public ?string $url,
-        public CheckoutSessionStatus $status,
+        public CheckoutSessionStatusEnum $status,
         public CarbonImmutable $expiresAt,
     ) {}
 }

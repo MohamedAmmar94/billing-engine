@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use App\Shared\Money\Currency;
+use App\Shared\Money\CurrencyEnum;
 
-it('knows how many decimal places each currency has', function (Currency $currency, int $exponent) {
+it('knows how many decimal places each currency has', function (CurrencyEnum $currency, int $exponent) {
     expect($currency->exponent())->toBe($exponent);
 })->with([
-    [Currency::EGP, 2],
-    [Currency::USD, 2],
-    [Currency::EUR, 2],
-    [Currency::JPY, 0],
+    [CurrencyEnum::EGP, 2],
+    [CurrencyEnum::USD, 2],
+    [CurrencyEnum::EUR, 2],
+    [CurrencyEnum::JPY, 0],
 ]);

@@ -7,7 +7,7 @@ namespace App\Payments\Gateway;
 use App\Shared\Money\Money;
 use Carbon\CarbonImmutable;
 
-final readonly class CheckoutSessionRequest
+final readonly class CheckoutSessionRequestDTO
 {
     public function __construct(
         public Money $amount,

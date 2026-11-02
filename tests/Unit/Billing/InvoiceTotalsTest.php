@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-use App\Billing\Support\InvoiceCalculator;
-use App\Shared\Money\Currency;
+use App\Billing\Support\InvoiceCalculatorService;
+use App\Shared\Money\CurrencyEnum;
 use App\Shared\Money\CurrencyMismatchException;
 use App\Shared\Money\Money;
 
 it('calculates subtotal, tax and total', function (array $lines, int $rateBp, int $subtotal, int $tax, int $total) {
-    $result = (new InvoiceCalculator)->totals(
-        Currency::USD,
-        array_map(fn (int $cents): Money => Money::of($cents, Currency::USD), $lines),
+    $result = (new InvoiceCalculatorService)->totals(
+        CurrencyEnum::USD,
+        array_map(fn (int $cents): Money => Money::of($cents, CurrencyEnum::USD), $lines),
         $rateBp,
     );
 
@@ -27,9 +27,9 @@ it('calculates subtotal, tax and total', function (array $lines, int $rateBp, in
 ]);
 
 it('refuses a negative tax rate', function () {
-    (new InvoiceCalculator)->totals(Currency::USD, [], -1);
+    (new InvoiceCalculatorService)->totals(CurrencyEnum::USD, [], -1);
 })->throws(InvalidArgumentException::class);
 
 it('refuses line totals in another currency', function () {
-    (new InvoiceCalculator)->totals(Currency::USD, [Money::of(100, Currency::EGP)], 1400);
+    (new InvoiceCalculatorService)->totals(CurrencyEnum::USD, [Money::of(100, CurrencyEnum::EGP)], 1400);
 })->throws(CurrencyMismatchException::class);

@@ -11,7 +11,7 @@ final readonly class Money
 {
     private function __construct(
         public int $amount,
-        public Currency $currency,
+        public CurrencyEnum $currency,
     ) {
         // abs() و negate() على أصغر int بيرجعوا float، فبنرفضه من الأول
         if ($amount === PHP_INT_MIN) {
@@ -19,12 +19,12 @@ final readonly class Money
         }
     }
 
-    public static function of(int $amount, Currency $currency): self
+    public static function of(int $amount, CurrencyEnum $currency): self
     {
         return new self($amount, $currency);
     }
 
-    public static function zero(Currency $currency): self
+    public static function zero(CurrencyEnum $currency): self
     {
         return new self(0, $currency);
     }

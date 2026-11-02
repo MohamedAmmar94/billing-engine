@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace App\Billing\Actions;
 
-use App\Billing\Enums\InvoiceStatus;
+use App\Billing\Enums\InvoiceStatusEnum;
 use App\Billing\Exceptions\InvalidInvoiceException;
 use App\Billing\Models\Customer;
 use App\Billing\Models\Invoice;
 use App\Billing\Models\Product;
-use App\Billing\Support\InvoiceCalculator;
+use App\Billing\Support\InvoiceCalculatorService;
 use App\Models\User;
-use App\Shared\Money\Currency;
+use App\Shared\Money\CurrencyEnum;
 use App\Shared\Money\Money;
 use Illuminate\Support\Facades\DB;
 
-final class CreateInvoice
+final class CreateInvoiceAction
 {
-    public function __construct(private readonly InvoiceCalculator $calculator) {}
+    public function __construct(private readonly InvoiceCalculatorService $calculator) {}
 
     /**
      * @param  list<array{product: Product, quantity: int}>  $items
@@ -28,7 +28,7 @@ final class CreateInvoice
             throw InvalidInvoiceException::noItems();
         }
 
-        $currency = Currency::from(config()->string('billing.currency'));
+        $currency = CurrencyEnum::from(config()->string('billing.currency'));
         $lines = [];
 
         foreach ($items as ['product' => $product, 'quantity' => $quantity]) {
@@ -58,7 +58,7 @@ final class CreateInvoice
             $invoice = Invoice::query()->create([
                 'customer_id' => $customer->id,
                 'created_by' => $creator->id,
-                'status' => InvoiceStatus::Draft,
+                'status' => InvoiceStatusEnum::Draft,
                 'currency' => $currency->value,
                 'subtotal' => $totals->subtotal->amount,
                 'tax_rate_bp' => $taxRateBp,

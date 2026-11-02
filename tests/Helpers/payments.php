@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 use App\Billing\Models\Invoice;
 use App\Payments\Gateway\Fake\FakeGateway;
-use App\Payments\Gateway\PaymentGateway;
+use App\Payments\Gateway\PaymentGatewayInterface;
 use App\Payments\Models\PaymentLink;
 
 function fakeGateway(): FakeGateway
 {
-    $gateway = app(PaymentGateway::class);
+    $gateway = app(PaymentGatewayInterface::class);
     assert($gateway instanceof FakeGateway);
 
     return $gateway;

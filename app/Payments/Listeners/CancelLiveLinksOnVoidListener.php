@@ -4,27 +4,27 @@ declare(strict_types=1);
 
 namespace App\Payments\Listeners;
 
-use App\Billing\Events\InvoiceVoided;
-use App\Payments\Enums\PaymentLinkStatus;
-use App\Payments\Jobs\ExpireCheckoutSession;
+use App\Billing\Events\InvoiceVoidedEvent;
+use App\Payments\Enums\PaymentLinkStatusEnum;
+use App\Payments\Jobs\ExpireCheckoutSessionJob;
 
-final class CancelLiveLinksOnVoid
+final class CancelLiveLinksOnVoidListener
 {
     /**
      * بيشتغل جوه transaction الإلغاء: حالة اللينكات بتتغير مع الفاتورة،
      * وقفل الـ session عند Stripe بيتأجل لحد الـ commit.
      */
-    public function handle(InvoiceVoided $event): void
+    public function handle(InvoiceVoidedEvent $event): void
     {
         $links = $event->invoice->paymentLinks()
-            ->whereIn('status', PaymentLinkStatus::liveValues())
+            ->whereIn('status', PaymentLinkStatusEnum::liveValues())
             ->get();
 
         foreach ($links as $link) {
-            $link->update(['status' => PaymentLinkStatus::Canceled]);
+            $link->update(['status' => PaymentLinkStatusEnum::Canceled]);
 
             if ($link->stripe_session_id !== null) {
-                ExpireCheckoutSession::dispatch($link->stripe_session_id)->afterCommit();
+                ExpireCheckoutSessionJob::dispatch($link->stripe_session_id)->afterCommit();
             }
         }
     }

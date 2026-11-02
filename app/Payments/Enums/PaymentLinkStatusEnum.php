@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Payments\Enums;
 
-enum PaymentLinkStatus: string
+enum PaymentLinkStatusEnum: string
 {
     case Open = 'open';
     case Completed = 'completed';

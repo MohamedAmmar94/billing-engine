@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Ledger\Enums;
 
-enum AccountCode: string
+enum AccountCodeEnum: string
 {
     case Assets = '1000';
     case GatewayClearing = '1010';

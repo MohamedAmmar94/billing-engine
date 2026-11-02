@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use App\Billing\Actions\CreateInvoice;
-use App\Billing\Actions\DiscardDraftInvoice;
-use App\Billing\Actions\OpenInvoice;
-use App\Billing\Actions\VoidInvoice;
-use App\Billing\Enums\InvoiceStatus;
-use App\Billing\Events\InvoiceOpened;
-use App\Billing\Events\InvoiceVoided;
+use App\Billing\Actions\CreateInvoiceAction;
+use App\Billing\Actions\DiscardDraftInvoiceAction;
+use App\Billing\Actions\OpenInvoiceAction;
+use App\Billing\Actions\VoidInvoiceAction;
+use App\Billing\Enums\InvoiceStatusEnum;
+use App\Billing\Events\InvoiceOpenedEvent;
+use App\Billing\Events\InvoiceVoidedEvent;
 use App\Billing\Exceptions\InvalidInvoiceException;
 use App\Billing\Exceptions\InvoiceStateException;
 use App\Billing\Models\Invoice;
@@ -23,19 +23,19 @@ beforeEach(function () {
 
 // ---------- الحالات المسموحة ----------
 
-it('only allows the agreed status transitions', function (InvoiceStatus $from, InvoiceStatus $to, bool $allowed) {
+it('only allows the agreed status transitions', function (InvoiceStatusEnum $from, InvoiceStatusEnum $to, bool $allowed) {
     expect($from->canTransitionTo($to))->toBe($allowed);
 })->with([
-    'draft to open' => [InvoiceStatus::Draft, InvoiceStatus::Open, true],
-    'open to paid' => [InvoiceStatus::Open, InvoiceStatus::Paid, true],
-    'open to void' => [InvoiceStatus::Open, InvoiceStatus::Void, true],
-    'draft to paid' => [InvoiceStatus::Draft, InvoiceStatus::Paid, false],
-    'draft to void' => [InvoiceStatus::Draft, InvoiceStatus::Void, false],
-    'open to draft' => [InvoiceStatus::Open, InvoiceStatus::Draft, false],
-    'paid to void' => [InvoiceStatus::Paid, InvoiceStatus::Void, false],
-    'paid to open' => [InvoiceStatus::Paid, InvoiceStatus::Open, false],
-    'void to open' => [InvoiceStatus::Void, InvoiceStatus::Open, false],
-    'void to paid' => [InvoiceStatus::Void, InvoiceStatus::Paid, false],
+    'draft to open' => [InvoiceStatusEnum::Draft, InvoiceStatusEnum::Open, true],
+    'open to paid' => [InvoiceStatusEnum::Open, InvoiceStatusEnum::Paid, true],
+    'open to void' => [InvoiceStatusEnum::Open, InvoiceStatusEnum::Void, true],
+    'draft to paid' => [InvoiceStatusEnum::Draft, InvoiceStatusEnum::Paid, false],
+    'draft to void' => [InvoiceStatusEnum::Draft, InvoiceStatusEnum::Void, false],
+    'open to draft' => [InvoiceStatusEnum::Open, InvoiceStatusEnum::Draft, false],
+    'paid to void' => [InvoiceStatusEnum::Paid, InvoiceStatusEnum::Void, false],
+    'paid to open' => [InvoiceStatusEnum::Paid, InvoiceStatusEnum::Open, false],
+    'void to open' => [InvoiceStatusEnum::Void, InvoiceStatusEnum::Open, false],
+    'void to paid' => [InvoiceStatusEnum::Void, InvoiceStatusEnum::Paid, false],
 ]);
 
 // ---------- الإنشاء (draft) ----------
@@ -44,13 +44,13 @@ it('creates a draft invoice with totals copied from the products', function () {
     $staff = makeStaff();
     $customer = makeCustomer();
 
-    $invoice = app(CreateInvoice::class)->handle($customer, $staff, [
+    $invoice = app(CreateInvoiceAction::class)->handle($customer, $staff, [
         ['product' => makeProduct(9900), 'quantity' => 1],
         ['product' => makeProduct(1500), 'quantity' => 2],
         ['product' => makeProduct(5000), 'quantity' => 1],
     ]);
 
-    expect($invoice->status)->toBe(InvoiceStatus::Draft)
+    expect($invoice->status)->toBe(InvoiceStatusEnum::Draft)
         ->and($invoice->number)->toBeNull()
         ->and($invoice->customer_id)->toBe($customer->id)
         ->and($invoice->created_by)->toBe($staff->id)
@@ -63,7 +63,7 @@ it('creates a draft invoice with totals copied from the products', function () {
 
 it('keeps the copied price when the product price changes later', function () {
     $product = makeProduct(9900);
-    $invoice = app(CreateInvoice::class)->handle(makeCustomer(), makeStaff(), [
+    $invoice = app(CreateInvoiceAction::class)->handle(makeCustomer(), makeStaff(), [
         ['product' => $product, 'quantity' => 1],
     ]);
 
@@ -83,47 +83,47 @@ it('rejects invalid invoice input', function (string $case) {
         'inactive product' => [['product' => makeProduct(active: false), 'quantity' => 1]],
     };
 
-    app(CreateInvoice::class)->handle(makeCustomer(), makeStaff(), $items);
+    app(CreateInvoiceAction::class)->handle(makeCustomer(), makeStaff(), $items);
 })->with(['no items', 'zero quantity', 'negative quantity', 'inactive product'])
     ->throws(InvalidInvoiceException::class);
 
 it('discards a draft together with its items', function () {
     $invoice = draftInvoice();
 
-    app(DiscardDraftInvoice::class)->handle($invoice);
+    app(DiscardDraftInvoiceAction::class)->handle($invoice);
 
     expect(Invoice::query()->count())->toBe(0)
         ->and(InvoiceItem::query()->count())->toBe(0);
 });
 
 it('refuses to discard an invoice that was opened', function () {
-    $opened = app(OpenInvoice::class)->handle(draftInvoice());
+    $opened = app(OpenInvoiceAction::class)->handle(draftInvoice());
 
-    app(DiscardDraftInvoice::class)->handle($opened);
+    app(DiscardDraftInvoiceAction::class)->handle($opened);
 })->throws(InvoiceStateException::class);
 
 // ---------- الفتح والترقيم ----------
 
 it('opens a draft: number, dates and event', function () {
     $this->travelTo('2026-11-01 10:00:00');
-    Event::fake([InvoiceOpened::class]);
+    Event::fake([InvoiceOpenedEvent::class]);
 
-    $opened = app(OpenInvoice::class)->handle(draftInvoice());
+    $opened = app(OpenInvoiceAction::class)->handle(draftInvoice());
 
-    expect($opened->status)->toBe(InvoiceStatus::Open)
+    expect($opened->status)->toBe(InvoiceStatusEnum::Open)
         ->and($opened->number)->toBe('INV-000001')
         ->and($opened->issued_at->toDateString())->toBe('2026-11-01')
         ->and($opened->due_at->toDateString())->toBe('2026-11-15');
 
     Event::assertDispatched(
-        InvoiceOpened::class,
-        fn (InvoiceOpened $event): bool => $event->invoice->is($opened),
+        InvoiceOpenedEvent::class,
+        fn (InvoiceOpenedEvent $event): bool => $event->invoice->is($opened),
     );
 });
 
 it('gives consecutive numbers to consecutive invoices', function () {
     $numbers = collect(range(1, 3))
-        ->map(fn () => app(OpenInvoice::class)->handle(draftInvoice())->number)
+        ->map(fn () => app(OpenInvoiceAction::class)->handle(draftInvoice())->number)
         ->all();
 
     expect($numbers)->toBe(['INV-000001', 'INV-000002', 'INV-000003']);
@@ -132,49 +132,49 @@ it('gives consecutive numbers to consecutive invoices', function () {
 it('gives the number back when opening fails halfway (no gaps)', function () {
     $invoice = draftInvoice();
 
-    Event::listen(InvoiceOpened::class, function (): void {
+    Event::listen(InvoiceOpenedEvent::class, function (): void {
         throw new RuntimeException('listener failed');
     });
 
-    expect(fn () => app(OpenInvoice::class)->handle($invoice))
+    expect(fn () => app(OpenInvoiceAction::class)->handle($invoice))
         ->toThrow(RuntimeException::class, 'listener failed');
 
     expect((int) DB::table('sequences')->where('name', 'invoice')->value('last_value'))->toBe(0)
-        ->and($invoice->fresh()->status)->toBe(InvoiceStatus::Draft)
+        ->and($invoice->fresh()->status)->toBe(InvoiceStatusEnum::Draft)
         ->and($invoice->fresh()->number)->toBeNull();
 });
 
 it('refuses to open an invoice twice', function () {
-    $opened = app(OpenInvoice::class)->handle(draftInvoice());
+    $opened = app(OpenInvoiceAction::class)->handle(draftInvoice());
 
-    app(OpenInvoice::class)->handle($opened);
+    app(OpenInvoiceAction::class)->handle($opened);
 })->throws(InvoiceStateException::class);
 
 it('refuses to open an invoice with nothing to bill', function () {
-    app(OpenInvoice::class)->handle(draftInvoice(unitPrice: 0));
+    app(OpenInvoiceAction::class)->handle(draftInvoice(unitPrice: 0));
 })->throws(InvalidInvoiceException::class, 'nothing to bill');
 
 // ---------- الإلغاء ----------
 
 it('voids an open invoice, keeps its number and announces it', function () {
-    Event::fake([InvoiceVoided::class]);
-    $opened = app(OpenInvoice::class)->handle(draftInvoice());
+    Event::fake([InvoiceVoidedEvent::class]);
+    $opened = app(OpenInvoiceAction::class)->handle(draftInvoice());
 
-    $voided = app(VoidInvoice::class)->handle($opened);
+    $voided = app(VoidInvoiceAction::class)->handle($opened);
 
-    expect($voided->status)->toBe(InvoiceStatus::Void)
+    expect($voided->status)->toBe(InvoiceStatusEnum::Void)
         ->and($voided->number)->toBe($opened->number);
 
-    Event::assertDispatched(InvoiceVoided::class);
+    Event::assertDispatched(InvoiceVoidedEvent::class);
 });
 
-it('refuses to void an invoice that is not open', function (InvoiceStatus $status) {
+it('refuses to void an invoice that is not open', function (InvoiceStatusEnum $status) {
     $invoice = draftInvoice();
     $invoice->update(['status' => $status]);
 
-    app(VoidInvoice::class)->handle($invoice);
+    app(VoidInvoiceAction::class)->handle($invoice);
 })->with([
-    'draft' => [InvoiceStatus::Draft],
-    'paid' => [InvoiceStatus::Paid],
-    'already void' => [InvoiceStatus::Void],
+    'draft' => [InvoiceStatusEnum::Draft],
+    'paid' => [InvoiceStatusEnum::Paid],
+    'already void' => [InvoiceStatusEnum::Void],
 ])->throws(InvoiceStateException::class);

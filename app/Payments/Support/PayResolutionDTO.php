@@ -4,40 +4,40 @@ declare(strict_types=1);
 
 namespace App\Payments\Support;
 
-final readonly class PayResolution
+final readonly class PayResolutionDTO
 {
     private function __construct(
-        public PayOutcome $outcome,
+        public PayOutcomeEnum $outcome,
         public ?string $url = null,
     ) {}
 
     public static function redirect(string $url): self
     {
-        return new self(PayOutcome::Redirect, $url);
+        return new self(PayOutcomeEnum::Redirect, $url);
     }
 
     public static function alreadyPaid(): self
     {
-        return new self(PayOutcome::AlreadyPaid);
+        return new self(PayOutcomeEnum::AlreadyPaid);
     }
 
     public static function processing(): self
     {
-        return new self(PayOutcome::Processing);
+        return new self(PayOutcomeEnum::Processing);
     }
 
     public static function tryAgain(): self
     {
-        return new self(PayOutcome::TryAgain);
+        return new self(PayOutcomeEnum::TryAgain);
     }
 
     public static function notPayable(): self
     {
-        return new self(PayOutcome::NotPayable);
+        return new self(PayOutcomeEnum::NotPayable);
     }
 
     public static function unavailable(): self
     {
-        return new self(PayOutcome::Unavailable);
+        return new self(PayOutcomeEnum::Unavailable);
     }
 }

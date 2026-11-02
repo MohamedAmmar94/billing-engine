@@ -6,14 +6,14 @@ namespace App\Payments\Jobs;
 
 use App\Payments\Gateway\GatewayException;
 use App\Payments\Gateway\GatewayTimeoutException;
-use App\Payments\Gateway\PaymentGateway;
+use App\Payments\Gateway\PaymentGatewayInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\Log;
 
-final class ExpireCheckoutSession implements ShouldQueue
+final class ExpireCheckoutSessionJob implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
@@ -21,6 +21,7 @@ final class ExpireCheckoutSession implements ShouldQueue
 
     public int $tries = 5;
 
+    // الـ Job واللسنر: إلغاء اللينكات عند الـ void
     public function __construct(public readonly string $sessionId) {}
 
     /** @return list<int> */
@@ -29,7 +30,7 @@ final class ExpireCheckoutSession implements ShouldQueue
         return [10, 60, 300, 900];
     }
 
-    public function handle(PaymentGateway $gateway): void
+    public function handle(PaymentGatewayInterface $gateway): void
     {
         try {
             $gateway->expireCheckoutSession($this->sessionId);

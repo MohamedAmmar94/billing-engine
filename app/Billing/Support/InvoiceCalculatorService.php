@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Billing\Support;
 
-use App\Shared\Money\Currency;
+use App\Shared\Money\CurrencyEnum;
 use App\Shared\Money\Money;
 use InvalidArgumentException;
 
-final class InvoiceCalculator
+final class InvoiceCalculatorService
 {
     /**
      * الضريبة بتتحسب مرة واحدة على الـ subtotal (مش على كل بند)
@@ -16,7 +16,7 @@ final class InvoiceCalculator
      *
      * @param  list<Money>  $lineTotals
      */
-    public function totals(Currency $currency, array $lineTotals, int $taxRateBp): InvoiceTotals
+    public function totals(CurrencyEnum $currency, array $lineTotals, int $taxRateBp): InvoiceTotalsDTO
     {
         if ($taxRateBp < 0) {
             throw new InvalidArgumentException('Tax rate must not be negative.');
@@ -33,6 +33,6 @@ final class InvoiceCalculator
         }
         $tax = $subtotal->percentage($taxRateBp);
 
-        return new InvoiceTotals($subtotal, $tax, $subtotal->add($tax));
+        return new InvoiceTotalsDTO($subtotal, $tax, $subtotal->add($tax));
     }
 }

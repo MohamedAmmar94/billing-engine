@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-use App\Ledger\Enums\AccountCode;
-use App\Ledger\Enums\AccountType;
-use App\Ledger\Enums\NormalSide;
+use App\Ledger\Enums\AccountCodeEnum;
+use App\Ledger\Enums\AccountTypeEnum;
+use App\Ledger\Enums\NormalSideEnum;
 use App\Ledger\Models\Account;
 use App\Ledger\Models\AccountBalance;
 use Illuminate\Database\Seeder;
@@ -19,15 +19,15 @@ class ChartOfAccountsSeeder extends Seeder
     public function run(): void
     {
         $accounts = [
-            [AccountCode::Assets, 'Assets', AccountType::Asset, NormalSide::Debit, false, null],
-            [AccountCode::GatewayClearing, 'Gateway Clearing', AccountType::Asset, NormalSide::Debit, true, AccountCode::Assets],
-            [AccountCode::AccountsReceivable, 'Accounts Receivable', AccountType::Asset, NormalSide::Debit, true, AccountCode::Assets],
-            [AccountCode::Liabilities, 'Liabilities', AccountType::Liability, NormalSide::Credit, false, null],
-            [AccountCode::TaxPayable, 'Tax Payable', AccountType::Liability, NormalSide::Credit, true, AccountCode::Liabilities],
-            [AccountCode::UnappliedPayments, 'Unapplied Payments', AccountType::Liability, NormalSide::Credit, true, AccountCode::Liabilities],
-            [AccountCode::Revenue, 'Revenue', AccountType::Revenue, NormalSide::Credit, false, null],
-            [AccountCode::SalesRevenue, 'Sales Revenue', AccountType::Revenue, NormalSide::Credit, true, AccountCode::Revenue],
-            [AccountCode::SalesRefunds, 'Sales Refunds', AccountType::Revenue, NormalSide::Debit, true, AccountCode::Revenue],
+            [AccountCodeEnum::Assets, 'Assets', AccountTypeEnum::Asset, NormalSideEnum::Debit, false, null],
+            [AccountCodeEnum::GatewayClearing, 'Gateway Clearing', AccountTypeEnum::Asset, NormalSideEnum::Debit, true, AccountCodeEnum::Assets],
+            [AccountCodeEnum::AccountsReceivable, 'Accounts Receivable', AccountTypeEnum::Asset, NormalSideEnum::Debit, true, AccountCodeEnum::Assets],
+            [AccountCodeEnum::Liabilities, 'Liabilities', AccountTypeEnum::Liability, NormalSideEnum::Credit, false, null],
+            [AccountCodeEnum::TaxPayable, 'Tax Payable', AccountTypeEnum::Liability, NormalSideEnum::Credit, true, AccountCodeEnum::Liabilities],
+            [AccountCodeEnum::UnappliedPayments, 'Unapplied Payments', AccountTypeEnum::Liability, NormalSideEnum::Credit, true, AccountCodeEnum::Liabilities],
+            [AccountCodeEnum::Revenue, 'Revenue', AccountTypeEnum::Revenue, NormalSideEnum::Credit, false, null],
+            [AccountCodeEnum::SalesRevenue, 'Sales Revenue', AccountTypeEnum::Revenue, NormalSideEnum::Credit, true, AccountCodeEnum::Revenue],
+            [AccountCodeEnum::SalesRefunds, 'Sales Refunds', AccountTypeEnum::Revenue, NormalSideEnum::Debit, true, AccountCodeEnum::Revenue],
         ];
 
         $ids = [];

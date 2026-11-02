@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 use LogicException;
 use RuntimeException;
 
-final class InvoiceNumberGenerator
+final class InvoiceNumberGeneratorService
 {
     /**
      * لازم تتندهش جوه transaction: القفل بيتفك عند آخرها، ولو فشلت الرقم بيرجع.

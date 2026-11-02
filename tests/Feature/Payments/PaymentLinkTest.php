@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Billing\Actions\VoidInvoice;
-use App\Billing\Enums\InvoiceStatus;
-use App\Payments\Enums\PaymentLinkStatus;
-use App\Payments\Gateway\CheckoutSessionStatus;
-use App\Payments\Gateway\Fake\FakeFailure;
+use App\Billing\Actions\VoidInvoiceAction;
+use App\Billing\Enums\InvoiceStatusEnum;
+use App\Payments\Enums\PaymentLinkStatusEnum;
+use App\Payments\Gateway\CheckoutSessionStatusEnum;
+use App\Payments\Gateway\Fake\FakeFailureEnum;
 use App\Payments\Models\PaymentLink;
 use Database\Seeders\SequenceSeeder;
 use Illuminate\Database\QueryException;
@@ -25,7 +25,7 @@ it('creates a link on the first visit and sends the customer to Stripe', functio
     $link = linkOf($this->invoice);
 
     $response->assertRedirect($link->url);
-    expect($link->status)->toBe(PaymentLinkStatus::Open)
+    expect($link->status)->toBe(PaymentLinkStatusEnum::Open)
         ->and($link->attempt)->toBe(1)
         ->and($link->stripe_session_id)->toStartWith('cs_test_fake_')
         ->and(fakeGateway()->sessionCount())->toBe(1);
@@ -53,9 +53,9 @@ it('replaces a link that expired at Stripe (problem: customer opens an old email
     $new = linkOf($this->invoice);
 
     $response->assertRedirect($new->url);
-    expect($old->fresh()->status)->toBe(PaymentLinkStatus::Expired)
+    expect($old->fresh()->status)->toBe(PaymentLinkStatusEnum::Expired)
         ->and($new->attempt)->toBe(2)
-        ->and($new->status)->toBe(PaymentLinkStatus::Open)
+        ->and($new->status)->toBe(PaymentLinkStatusEnum::Open)
         ->and(liveLinkCount($this->invoice))->toBe(1);
 });
 
@@ -68,8 +68,8 @@ it('retires a link that is about to expire and expires its session at Stripe', f
     $this->get(payUrl($this->invoice));
     $new = linkOf($this->invoice);
 
-    expect($old->fresh()->status)->toBe(PaymentLinkStatus::Canceled)
-        ->and(fakeGateway()->session($old->stripe_session_id)->status)->toBe(CheckoutSessionStatus::Expired)
+    expect($old->fresh()->status)->toBe(PaymentLinkStatusEnum::Canceled)
+        ->and(fakeGateway()->session($old->stripe_session_id)->status)->toBe(CheckoutSessionStatusEnum::Expired)
         ->and($new->attempt)->toBe(2)
         ->and(liveLinkCount($this->invoice))->toBe(1);
 });
@@ -84,12 +84,12 @@ it('does not create a new link when Stripe says the payment completed (problem: 
         ->assertJsonPath('status', 'processing');
 
     expect(PaymentLink::query()->count())->toBe(1)
-        ->and($link->fresh()->status)->toBe(PaymentLinkStatus::Open);
+        ->and($link->fresh()->status)->toBe(PaymentLinkStatusEnum::Open);
 });
 
 // ---------- فواتير مش قابلة للدفع ----------
 
-it('does not create anything for invoices that cannot be paid', function (InvoiceStatus $status, int $httpStatus, string $answer) {
+it('does not create anything for invoices that cannot be paid', function (InvoiceStatusEnum $status, int $httpStatus, string $answer) {
     $this->invoice->update(['status' => $status]);
 
     $this->get(payUrl($this->invoice))
@@ -99,9 +99,9 @@ it('does not create anything for invoices that cannot be paid', function (Invoic
     expect(PaymentLink::query()->count())->toBe(0)
         ->and(fakeGateway()->calls('create'))->toBe(0);
 })->with([
-    'paid' => [InvoiceStatus::Paid, 200, 'already_paid'],
-    'void' => [InvoiceStatus::Void, 409, 'not_payable'],
-    'draft' => [InvoiceStatus::Draft, 409, 'not_payable'],
+    'paid' => [InvoiceStatusEnum::Paid, 200, 'already_paid'],
+    'void' => [InvoiceStatusEnum::Void, 409, 'not_payable'],
+    'draft' => [InvoiceStatusEnum::Draft, 409, 'not_payable'],
 ]);
 
 it('answers 404 for a malformed id', function () {
@@ -111,7 +111,7 @@ it('answers 404 for a malformed id', function () {
 // ---------- أعطال الـ gateway ----------
 
 it('keeps a pending row when Stripe times out and resumes later (problem: timeout before creation)', function () {
-    fakeGateway()->failNext('create', FakeFailure::TimeoutBeforeEffect);
+    fakeGateway()->failNext('create', FakeFailureEnum::TimeoutBeforeEffect);
 
     $this->get(payUrl($this->invoice))
         ->assertStatus(503)
@@ -119,7 +119,7 @@ it('keeps a pending row when Stripe times out and resumes later (problem: timeou
         ->assertJsonPath('status', 'try_again');
 
     $link = linkOf($this->invoice);
-    expect($link->status)->toBe(PaymentLinkStatus::Pending)
+    expect($link->status)->toBe(PaymentLinkStatusEnum::Pending)
         ->and($link->stripe_session_id)->toBeNull();
 
     // لسه جوه فترة السماح: حد ممكن يكون بيكلم Stripe، فما نكلمهوش تاني
@@ -130,13 +130,13 @@ it('keeps a pending row when Stripe times out and resumes later (problem: timeou
     $this->travelTo(now()->addMinutes(3));
     $this->get(payUrl($this->invoice))->assertRedirect();
 
-    expect($link->fresh()->status)->toBe(PaymentLinkStatus::Open)
+    expect($link->fresh()->status)->toBe(PaymentLinkStatusEnum::Open)
         ->and(PaymentLink::query()->count())->toBe(1)
         ->and(fakeGateway()->sessionCount())->toBe(1);
 });
 
 it('never creates two Stripe sessions when the response is lost (problem: crash or timeout after Stripe created the session)', function () {
-    fakeGateway()->failNext('create', FakeFailure::TimeoutAfterEffect);
+    fakeGateway()->failNext('create', FakeFailureEnum::TimeoutAfterEffect);
 
     $this->get(payUrl($this->invoice))->assertStatus(503);
 
@@ -150,16 +150,16 @@ it('never creates two Stripe sessions when the response is lost (problem: crash 
     $link = linkOf($this->invoice);
     expect(fakeGateway()->sessionCount())->toBe(1)
         ->and($link->stripe_session_id)->toBe('cs_test_fake_000001')
-        ->and($link->status)->toBe(PaymentLinkStatus::Open)
+        ->and($link->status)->toBe(PaymentLinkStatusEnum::Open)
         ->and(PaymentLink::query()->count())->toBe(1);
 });
 
 it('frees the slot when Stripe rejects the request and lets the customer try again', function () {
-    fakeGateway()->failNext('create', FakeFailure::Rejected);
+    fakeGateway()->failNext('create', FakeFailureEnum::Rejected);
 
     $this->get(payUrl($this->invoice))->assertStatus(502)->assertJsonPath('status', 'unavailable');
 
-    expect(linkOf($this->invoice)->status)->toBe(PaymentLinkStatus::Canceled);
+    expect(linkOf($this->invoice)->status)->toBe(PaymentLinkStatusEnum::Canceled);
 
     $this->get(payUrl($this->invoice))->assertRedirect();
 
@@ -169,11 +169,11 @@ it('frees the slot when Stripe rejects the request and lets the customer try aga
 
 it('asks the customer to retry when Stripe cannot be reached while checking a link', function () {
     $this->get(payUrl($this->invoice));
-    fakeGateway()->failNext('retrieve', FakeFailure::TimeoutBeforeEffect);
+    fakeGateway()->failNext('retrieve', FakeFailureEnum::TimeoutBeforeEffect);
 
     $this->get(payUrl($this->invoice))->assertStatus(503);
 
-    expect(linkOf($this->invoice)->status)->toBe(PaymentLinkStatus::Open)
+    expect(linkOf($this->invoice)->status)->toBe(PaymentLinkStatusEnum::Open)
         ->and(PaymentLink::query()->count())->toBe(1);
 });
 
@@ -192,10 +192,10 @@ it('cancels live links and expires the Stripe session when the invoice is voided
     $this->get(payUrl($this->invoice));
     $link = linkOf($this->invoice);
 
-    app(VoidInvoice::class)->handle($this->invoice);
+    app(VoidInvoiceAction::class)->handle($this->invoice);
 
-    expect($link->fresh()->status)->toBe(PaymentLinkStatus::Canceled)
-        ->and(fakeGateway()->session($link->stripe_session_id)->status)->toBe(CheckoutSessionStatus::Expired);
+    expect($link->fresh()->status)->toBe(PaymentLinkStatusEnum::Canceled)
+        ->and(fakeGateway()->session($link->stripe_session_id)->status)->toBe(CheckoutSessionStatusEnum::Expired);
 
     $this->get(payUrl($this->invoice))->assertStatus(409)->assertJsonPath('status', 'not_payable');
 });
@@ -207,7 +207,7 @@ it('marks open links past their expiry as expired', function () {
     $this->travelTo(now()->addHours(13));
     $this->artisan('payments:expire-links')->assertSuccessful();
 
-    expect($link->fresh()->status)->toBe(PaymentLinkStatus::Expired);
+    expect($link->fresh()->status)->toBe(PaymentLinkStatusEnum::Expired);
 });
 
 // ---------- الـ API بتاع الموظف ----------

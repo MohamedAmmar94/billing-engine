@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Billing\Http\Controllers;
 
-use App\Billing\Actions\CreateInvoice;
-use App\Billing\Actions\DiscardDraftInvoice;
-use App\Billing\Actions\OpenInvoice;
-use App\Billing\Actions\VoidInvoice;
-use App\Billing\Enums\InvoiceStatus;
+use App\Billing\Actions\CreateInvoiceAction;
+use App\Billing\Actions\DiscardDraftInvoiceAction;
+use App\Billing\Actions\OpenInvoiceAction;
+use App\Billing\Actions\VoidInvoiceAction;
+use App\Billing\Enums\InvoiceStatusEnum;
 use App\Billing\Http\Requests\StoreInvoiceRequest;
 use App\Billing\Http\Resources\InvoiceResource;
 use App\Billing\Models\Customer;
@@ -29,7 +29,7 @@ final class InvoiceController
     public function index(Request $request): AnonymousResourceCollection
     {
         $filters = $request->validate([
-            'status' => ['sometimes', Rule::enum(InvoiceStatus::class)],
+            'status' => ['sometimes', Rule::enum(InvoiceStatusEnum::class)],
             'customer' => ['sometimes', 'uuid'],
         ]);
 
@@ -46,7 +46,7 @@ final class InvoiceController
         return InvoiceResource::collection($query->paginate(25));
     }
 
-    public function store(StoreInvoiceRequest $request, CreateInvoice $createInvoice): JsonResponse
+    public function store(StoreInvoiceRequest $request, CreateInvoiceAction $createInvoice): JsonResponse
     {
 
         /** @var User $staff */
@@ -78,17 +78,17 @@ final class InvoiceController
         return InvoiceResource::make($invoice->load(self::FULL));
     }
 
-    public function open(Invoice $invoice, OpenInvoice $action): InvoiceResource
+    public function open(Invoice $invoice, OpenInvoiceAction $action): InvoiceResource
     {
         return InvoiceResource::make($action->handle($invoice)->load(self::FULL));
     }
 
-    public function void(Invoice $invoice, VoidInvoice $action): InvoiceResource
+    public function void(Invoice $invoice, VoidInvoiceAction $action): InvoiceResource
     {
         return InvoiceResource::make($action->handle($invoice)->load(self::FULL));
     }
 
-    public function destroy(Invoice $invoice, DiscardDraftInvoice $action): Response
+    public function destroy(Invoice $invoice, DiscardDraftInvoiceAction $action): Response
     {
         $action->handle($invoice);
 
