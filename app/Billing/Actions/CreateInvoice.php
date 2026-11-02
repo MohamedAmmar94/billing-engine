@@ -77,7 +77,7 @@ final class CreateInvoice
                 ]);
             }
 
-            return $invoice->load('items');
+            return $invoice; // ->load('items');
         });
     }
 }
