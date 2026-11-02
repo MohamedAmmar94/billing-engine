@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Billing\Http\Resources;
 
+use App\Billing\Enums\InvoiceStatus;
 use App\Billing\Models\Invoice;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -36,6 +37,9 @@ final class InvoiceResource extends JsonResource
             'issued_at' => $invoice->issued_at?->toIso8601String(),
             'due_at' => $invoice->due_at?->toIso8601String(),
             'paid_at' => $invoice->paid_at?->toIso8601String(),
+            'pay_url' => $invoice->status === InvoiceStatus::Open
+                ? route('pay', ['invoice' => $invoice->uuid])
+                : null,
             'created_at' => $invoice->created_at?->toIso8601String(),
             'customer' => $this->whenLoaded('customer', fn () => CustomerResource::make($invoice->customer)),
             'created_by' => $this->whenLoaded('creator', fn () => [

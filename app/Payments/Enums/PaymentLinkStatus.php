@@ -16,4 +16,10 @@ enum PaymentLinkStatus: string
     {
         return $this === self::Pending || $this === self::Open;
     }
+
+    /** @return list<string> */
+    public static function liveValues(): array
+    {
+        return [self::Pending->value, self::Open->value];
+    }
 }
