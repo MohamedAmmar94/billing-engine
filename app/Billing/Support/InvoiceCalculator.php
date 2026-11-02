@@ -22,12 +22,15 @@ final class InvoiceCalculator
             throw new InvalidArgumentException('Tax rate must not be negative.');
         }
 
-        $subtotal = array_reduce(
-            $lineTotals,
-            fn (Money $carry, Money $line): Money => $carry->add($line),
-            Money::zero($currency),
-        );
-
+        // $subtotal = array_reduce(
+        //     $lineTotals,
+        //     fn (Money $carry, Money $line): Money => $carry->add($line),
+        //     Money::zero($currency),
+        // );
+        $subtotal = Money::zero($currency);
+        foreach ($lineTotals as $line) {
+            $subtotal = $subtotal->add($line);
+        }
         $tax = $subtotal->percentage($taxRateBp);
 
         return new InvoiceTotals($subtotal, $tax, $subtotal->add($tax));

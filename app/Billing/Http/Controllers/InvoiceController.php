@@ -48,6 +48,7 @@ final class InvoiceController
 
     public function store(StoreInvoiceRequest $request, CreateInvoice $createInvoice): JsonResponse
     {
+
         /** @var User $staff */
         $staff = $request->user();
 
@@ -60,7 +61,6 @@ final class InvoiceController
             ->whereIn('uuid', array_column($requested, 'product'))
             ->get()
             ->keyBy('uuid');
-
         $items = array_map(
             fn (array $item): array => [
                 'product' => $products[$item['product']],
@@ -68,8 +68,7 @@ final class InvoiceController
             ],
             $requested,
         );
-
-        $invoice = $createInvoice->handle($customer, $staff, $items);
+        $invoice = $createInvoice->handle($customer, $staff, $items); // invoiceTotals
 
         return InvoiceResource::make($invoice->load(self::FULL))->response()->setStatusCode(201);
     }

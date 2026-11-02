@@ -84,7 +84,8 @@ corrections are done by voiding and issuing a new invoice. A voided invoice keep
 
 ### 4.4 Ask the customer to pay
 
-The customer gets a **stable URL** `/pay/{invoice uuid}` that never changes.
+The customer gets a **stable URL** `GET /api/v1/pay/{invoice uuid}` that never changes
+(the invoice resource exposes it as `pay_url` while the invoice is open).
 Stripe links expire, so a Stripe link is only created when the customer clicks.
 Staff can resend the same URL at any time.
 
@@ -106,7 +107,7 @@ The invoice is locked, then:
 
 Creating a link: (1) save a `pending` row and commit, no lock held while calling Stripe;
 (2) call Stripe with amount, expiry, `client_reference_id` and the idempotency key
-`invoice-{id}-link-{attempt}`; (3) store the session id and URL, status `open`.
+`invoice-{uuid}-link-{attempt}`; (3) store the session id and URL, status `open`.
 At most **one live link (`pending` or `open`) per invoice**, enforced by a partial unique index.
 
 ### 4.6 Paying on Stripe

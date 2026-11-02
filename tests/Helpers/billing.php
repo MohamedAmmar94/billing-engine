@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Billing\Actions\CreateInvoice;
+use App\Billing\Actions\OpenInvoice;
 use App\Billing\Models\Customer;
 use App\Billing\Models\Invoice;
 use App\Billing\Models\Product;
@@ -39,4 +40,8 @@ function draftInvoice(int $unitPrice = 10000): Invoice
         makeStaff(),
         [['product' => makeProduct($unitPrice), 'quantity' => 1]],
     );
+}
+function openInvoice(int $unitPrice = 10000): Invoice
+{
+    return app(OpenInvoice::class)->handle(draftInvoice($unitPrice));
 }

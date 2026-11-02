@@ -51,3 +51,4 @@ function something()
     // ..
 }
 require_once __DIR__.'/Helpers/billing.php';
+require_once __DIR__.'/Helpers/payments.php';

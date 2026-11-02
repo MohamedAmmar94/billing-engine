@@ -27,4 +27,6 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(fn (InvoiceStateException $e) => response()->json(['message' => $e->getMessage()], 409));
         $exceptions->render(fn (InvalidInvoiceException $e) => response()->json(['message' => $e->getMessage()], 422));
 
-    })->create();
+    })
+    ->withCommands([__DIR__.'/../app/Payments/Console'])
+    ->create();
