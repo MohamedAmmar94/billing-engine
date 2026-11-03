@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace App\Payments\Actions;
 
@@ -21,14 +21,12 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
-final class ResolvePaymentLinkAction
-{
+final class ResolvePaymentLinkAction {
     private const MAX_ROUNDS = 3;
 
     public function __construct(private readonly PaymentGatewayInterface $gateway) {}
 
-    public function handle(Invoice $invoice): PayResolutionDTO
-    {
+    public function handle(Invoice $invoice): PayResolutionDTO {
         for ($round = 0; $round < self::MAX_ROUNDS; $round++) {
             try {
                 $step = $this->decide($invoice);
@@ -59,9 +57,8 @@ final class ResolvePaymentLinkAction
     /**
      * المرحلة 1: قرار من الـ DB بس (بدون شبكة) تحت lock على الفاتورة.
      */
-    private function decide(Invoice $invoice): PayResolutionDTO|PaymentLink
-    {
-        return DB::transaction(function () use ($invoice): PayResolutionDTO|PaymentLink {
+    private function decide(Invoice $invoice): PayResolutionDTO | PaymentLink {
+        return DB::transaction(function () use ($invoice): PayResolutionDTO | PaymentLink {
             $invoice = $invoice->lockedCopy();
 
             if ($invoice->status === InvoiceStatusEnum::Paid) {
@@ -107,13 +104,12 @@ final class ResolvePaymentLinkAction
         });
     }
 
-    private function newPendingLink(Invoice $invoice): PaymentLink
-    {
+    private function newPendingLink(Invoice $invoice): PaymentLink {
         $attempt = ((int) $invoice->paymentLinks()->max('attempt')) + 1;
 
         return $invoice->paymentLinks()->create([
-            'attempt' => $attempt,
-            'status' => PaymentLinkStatusEnum::Pending,
+            'attempt'    => $attempt,
+            'status'     => PaymentLinkStatusEnum::Pending,
             'expires_at' => now()->addMinutes(config()->integer('payments.link_ttl_minutes')),
         ]);
     }
@@ -121,16 +117,15 @@ final class ResolvePaymentLinkAction
     /**
      * المرحلة 2 و3 لصف pending: نكلم Stripe (من غير lock) وبعدين نسجل النتيجة.
      */
-    private function openAtGateway(Invoice $invoice, PaymentLink $link): PayResolutionDTO
-    {
+    private function openAtGateway(Invoice $invoice, PaymentLink $link): PayResolutionDTO {
         $request = new CheckoutSessionRequestDTO(
             amount: Money::of($invoice->total, CurrencyEnum::from($invoice->currency)),
-            description: 'Invoice '.(string) $invoice->number,
+            description: 'Invoice ' . (string) $invoice->number,
             clientReferenceId: $link->uuid,
             idempotencyKey: "invoice-{$invoice->uuid}-link-{$link->attempt}",
             expiresAt: CarbonImmutable::instance($link->expires_at),
-            successUrl: config()->string('payments.success_url'),
-            cancelUrl: config()->string('payments.cancel_url'),
+            successUrl: route('payment.success', ['invoice' => $invoice->uuid]),
+            cancelUrl: route('payment.cancel', ['invoice' => $invoice->uuid]),
         );
 
         try {
@@ -161,9 +156,9 @@ final class ResolvePaymentLinkAction
 
             $fresh->update([
                 'stripe_session_id' => $session->id,
-                'url' => $session->url,
-                'status' => PaymentLinkStatusEnum::Open,
-                'expires_at' => $session->expiresAt,
+                'url'               => $session->url,
+                'status'            => PaymentLinkStatusEnum::Open,
+                'expires_at'        => $session->expiresAt,
             ]);
 
             return PayResolutionDTO::redirect((string) $session->url);
@@ -174,8 +169,7 @@ final class ResolvePaymentLinkAction
      * لينك مفتوح عندنا: نسأل Stripe عن الحقيقة قبل ما نديه للعميل.
      * بيرجّع null لو قفلنا اللينك القديم وعاوزين نلف تاني لإنشاء جديد.
      */
-    private function verifyOpenLink(Invoice $invoice, PaymentLink $link): ?PayResolutionDTO
-    {
+    private function verifyOpenLink(Invoice $invoice, PaymentLink $link): ?PayResolutionDTO {
         try {
             $session = $this->gateway->retrieveCheckoutSession((string) $link->stripe_session_id);
         } catch (GatewayException $e) {
@@ -190,7 +184,7 @@ final class ResolvePaymentLinkAction
         }
 
         $minutesLeft = now()->diffInMinutes($link->expires_at, false);
-        $enoughTime = $minutesLeft > config()->integer('payments.link_min_remaining_minutes');
+        $enoughTime  = $minutesLeft > config()->integer('payments.link_min_remaining_minutes');
 
         if ($session->status === CheckoutSessionStatusEnum::Open && $enoughTime) {
             return PayResolutionDTO::redirect((string) $link->url);
@@ -217,8 +211,7 @@ final class ResolvePaymentLinkAction
         return null;
     }
 
-    private function retire(Invoice $invoice, PaymentLink $link, PaymentLinkStatusEnum $as): void
-    {
+    private function retire(Invoice $invoice, PaymentLink $link, PaymentLinkStatusEnum $as): void {
         DB::transaction(function () use ($invoice, $link, $as): void {
             $invoice->lockedCopy();
             $fresh = PaymentLink::query()->whereKey($link->getKey())->lockForUpdate()->firstOrFail();

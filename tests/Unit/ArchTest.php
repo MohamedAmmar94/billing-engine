@@ -26,3 +26,26 @@ arch('Money is an immutable value object')
 arch('no debugging leftovers')
     ->expect(['dd', 'dump', 'var_dump', 'ray'])
     ->not->toBeUsed();
+arch('actions end with Action')
+    ->expect(['App\Billing\Actions', 'App\Payments\Actions'])
+    ->toHaveSuffix('Action');
+
+arch('enums end with Enum')
+    ->expect(['App\Billing\Enums', 'App\Ledger\Enums', 'App\Payments\Enums'])
+    ->toHaveSuffix('Enum');
+
+arch('events end with Event')
+    ->expect('App\Billing\Events')
+    ->toHaveSuffix('Event');
+
+arch('listeners end with Listener')
+    ->expect('App\Payments\Listeners')
+    ->toHaveSuffix('Listener');
+
+arch('jobs end with Job')
+    ->expect('App\Payments\Jobs')
+    ->toHaveSuffix('Job');
+
+arch('commands end with Command')
+    ->expect('App\Payments\Console')
+    ->toHaveSuffix('Command');

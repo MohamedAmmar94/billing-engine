@@ -15,6 +15,6 @@ return [
     // الصف الـ pending اللي أصغر من كده معناه إن حد تاني بيكلم Stripe دلوقتي
     'pending_grace_seconds' => 120,
 
-    'success_url' => env('PAYMENT_SUCCESS_URL', 'http://localhost:3000/payment/success'),
-    'cancel_url' => env('PAYMENT_CANCEL_URL', 'http://localhost:3000/payment/cancel'),
+    // 'success_url' => env('PAYMENT_SUCCESS_URL', 'http://localhost:3000/payment/success'),
+    // 'cancel_url' => env('PAYMENT_CANCEL_URL', 'http://localhost:3000/payment/cancel'),
 ];
