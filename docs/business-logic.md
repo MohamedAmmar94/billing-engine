@@ -114,6 +114,7 @@ At most **one live link (`pending` or `open`) per invoice**, enforced by a parti
 Declined cards are retried inside Stripe's page; we see nothing.
 The success redirect is **never trusted**; only the webhook confirms a payment.
 Card only, full invoice amount only.
+The success page reads the invoice status from the database and refreshes until the webhook has marked it paid.
 
 ### 4.7 The webhook (`checkout.session.completed`)
 

@@ -31,9 +31,9 @@ pest()->extend(TestCase::class)
 |
 */
 
-expect()->extend('toBeOne', function () {
-    return $this->toBe(1);
-});
+// expect()->extend('toBeOne', function () {
+//     return $this->toBe(1);
+// });
 
 /*
 |--------------------------------------------------------------------------
@@ -46,10 +46,10 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
-{
-    // ..
-}
+// function something()
+// {
+//     // ..
+// }
 require_once __DIR__.'/Helpers/billing.php';
 require_once __DIR__.'/Helpers/payments.php';
 require_once __DIR__.'/Helpers/idempotency.php';
