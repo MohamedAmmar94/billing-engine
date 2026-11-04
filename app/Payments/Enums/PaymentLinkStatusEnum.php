@@ -12,11 +12,6 @@ enum PaymentLinkStatusEnum: string
     case Canceled = 'canceled';
     case Pending = 'pending';
 
-    public function isLive(): bool
-    {
-        return $this === self::Pending || $this === self::Open;
-    }
-
     /** @return list<string> */
     public static function liveValues(): array
     {
