@@ -129,8 +129,8 @@ final class ResolvePaymentLinkAction
             clientReferenceId: $link->uuid,
             idempotencyKey: "invoice-{$invoice->uuid}-link-{$link->attempt}",
             expiresAt: CarbonImmutable::instance($link->expires_at),
-            successUrl: config()->string('payments.success_url'),
-            cancelUrl: config()->string('payments.cancel_url'),
+            successUrl: route('payment.success', ['invoice' => $invoice->uuid]),
+            cancelUrl: route('payment.cancel', ['invoice' => $invoice->uuid]),
         );
 
         try {

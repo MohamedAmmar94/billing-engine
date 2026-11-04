@@ -17,7 +17,7 @@ class InvoiceItem extends Model
     ];
 
     /**
-     * @return array<string, string>
+     * @var array<string, string>
      */
     protected $casts = [
         'quantity' => 'integer',

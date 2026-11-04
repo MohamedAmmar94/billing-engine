@@ -11,9 +11,8 @@ trigger on demand with the real provider.
 
 ## Decision
 
-- Define a `PaymentGateway` interface owned by the application.
-- `StripeGateway` implements it using the official Stripe PHP SDK. The SDK is used
-  **only** inside this class.
+- Define a `PaymentGatewayInterface` interface owned by the application.
+- `StripeGateway` implements it using the official Stripe API.
 - `FakeGateway` implements it for tests and can simulate success, failure and timeouts.
 - The majority of tests use `FakeGateway`; a small, separate group of integration
   tests (`@group stripe`) runs against Stripe test mode.
