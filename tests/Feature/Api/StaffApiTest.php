@@ -8,6 +8,7 @@ use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 
 beforeEach(function () {
+    // dd(idem());
     $this->seed(SequenceSeeder::class);
 });
 
@@ -69,8 +70,7 @@ it('walks the staff journey and never leaks database ids', function () {
             ['product' => $products[1]['id'], 'quantity' => 2],
             ['product' => $products[2]['id'], 'quantity' => 1],
         ],
-    ])->assertCreated()->json('data');
-
+    ], idem())->assertCreated()->json('data');
     expect($invoice['status'])->toBe('draft')
         ->and($invoice['number'])->toBeNull()
         ->and($invoice['total'])->toBe(20406)
@@ -84,9 +84,10 @@ it('walks the staff journey and never leaks database ids', function () {
         ->merge(array_keys($invoice['items'][0]))
         ->filter(fn (string $key): bool => str_ends_with($key, '_id'));
     expect($exposed)->toBeEmpty();
+    // dd($invoice, idem());
 
-    $opened = $this->postJson("/api/v1/invoices/{$invoice['id']}/open")->assertOk()->json('data');
-
+    $opened = $this->postJson("/api/v1/invoices/{$invoice['id']}/open", [], idem())->assertOk()->json('data');
+    // dd($opened);
     expect($opened['status'])->toBe('open')
         ->and($opened['number'])->toBe('INV-000001')
         ->and($opened['due_at'])->not->toBeNull();
@@ -98,7 +99,7 @@ it('walks the staff journey and never leaks database ids', function () {
     $this->getJson('/api/v1/invoices?status=open')->assertOk()->assertJsonCount(1, 'data');
     $this->getJson('/api/v1/invoices?status=nonsense')->assertUnprocessable();
 
-    $this->postJson("/api/v1/invoices/{$invoice['id']}/void")
+    $this->postJson("/api/v1/invoices/{$invoice['id']}/void", [], idem())
         ->assertOk()
         ->assertJsonPath('data.status', 'void')
         ->assertJsonPath('data.number', 'INV-000001');
@@ -113,35 +114,35 @@ it('rejects invalid input with 422', function () {
     $this->postJson('/api/v1/customers', ['name' => 'Dup', 'email' => $customer->email])
         ->assertUnprocessable()->assertJsonValidationErrors('email');
 
-    $this->postJson('/api/v1/invoices', ['customer' => $customer->uuid, 'items' => []])
+    $this->postJson('/api/v1/invoices', ['customer' => $customer->uuid, 'items' => []], idem())
         ->assertUnprocessable()->assertJsonValidationErrors('items');
 
     $this->postJson('/api/v1/invoices', [
         'customer' => $customer->uuid,
         'items' => [['product' => $active->uuid, 'quantity' => 0]],
-    ])->assertUnprocessable()->assertJsonValidationErrors('items.0.quantity');
+    ], idem())->assertUnprocessable()->assertJsonValidationErrors('items.0.quantity');
 
     $this->postJson('/api/v1/invoices', [
         'customer' => (string) Str::uuid(),
         'items' => [['product' => $active->uuid, 'quantity' => 1]],
-    ])->assertUnprocessable()->assertJsonValidationErrors('customer');
+    ], idem())->assertUnprocessable()->assertJsonValidationErrors('customer');
 
     // قاعدة بيزنس مش validation: المنتج موجود بس مش نشط
     $this->postJson('/api/v1/invoices', [
         'customer' => $customer->uuid,
         'items' => [['product' => $inactive->uuid, 'quantity' => 1]],
-    ])->assertUnprocessable()->assertJsonPath('message', "Product {$inactive->sku} is not active.");
+    ], idem())->assertUnprocessable()->assertJsonPath('message', "Product {$inactive->sku} is not active.")->assertJsonPath('code', 'invalid_invoice');
 });
 
 it('answers 409 when the invoice is in the wrong state', function () {
     Sanctum::actingAs(makeStaff());
     $draft = draftInvoice();
 
-    $this->postJson("/api/v1/invoices/{$draft->uuid}/void")->assertConflict();
+    $this->postJson("/api/v1/invoices/{$draft->uuid}/void", [], idem())->assertConflict()->assertJsonPath('code', 'invoice_state_conflict');
 
-    $this->postJson("/api/v1/invoices/{$draft->uuid}/open")->assertOk();
-    $this->postJson("/api/v1/invoices/{$draft->uuid}/open")->assertConflict();
-    $this->deleteJson("/api/v1/invoices/{$draft->uuid}")->assertConflict();
+    $this->postJson("/api/v1/invoices/{$draft->uuid}/open", [], idem())->assertOk();
+    $this->postJson("/api/v1/invoices/{$draft->uuid}/open", [], idem())->assertConflict()->assertJsonPath('code', 'invoice_state_conflict');
+    $this->deleteJson("/api/v1/invoices/{$draft->uuid}", idem())->assertConflict()->assertJsonPath('code', 'invoice_state_conflict');
 });
 
 it('answers 404 for unknown ids, malformed ids and database ids', function (string $id) {

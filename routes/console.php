@@ -11,3 +11,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('payments:expire-links')->everyFiveMinutes();
+Schedule::command('idempotency:prune')->hourly();

@@ -1,7 +1,7 @@
 # 0007. Class names state their role
 
 - **Status:** Accepted
-- **Date:** 2026-11-02
+- **Date:** 2026-11-04
 
 ## Context
 
@@ -11,7 +11,7 @@ omits suffixes for enums, interfaces and events; this project prefers explicitne
 ## Decision
 
 Technical roles carry a suffix: `Enum`, `Interface`, `DTO`, `Action`, `Service`,
-`Event`, `Listener`, `Job`, `Command` (plus the Laravel ones that already have it:
+`Event`, `Listener`, `Job`, `Command`, `Middleware` (plus the Laravel ones that already have it:
 `Controller`, `Request`, `Resource`, `Exception`, `Seeder`).
 
 No suffix for:

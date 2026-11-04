@@ -1,6 +1,6 @@
 # 0003. Hide the payment provider behind an interface
 
-- **Status:** Accepted
+- **Status:** Partially
 - **Date:** 2026-10-31
 
 ## Context
@@ -19,6 +19,7 @@ trigger on demand with the real provider.
 - Webhook signature verification is implemented by hand (HMAC-SHA256 with
   timestamp tolerance) rather than calling the SDK helper, to make the
   security mechanism explicit and fully tested.
+- superseded by ADR 0008 (the SDK is no longer used; the interface and the hand-written signature check remain).
 
 ## Consequences
 
