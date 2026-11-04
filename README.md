@@ -5,8 +5,8 @@
 A fault-tolerant payment and double-entry accounting backend built with
 **Laravel 13**, **PostgreSQL** and **Stripe**.
 
-> 🚧 **Status:** under active development. **Phases 0 and 1 are complete**
-> (money primitives, schema, invoices, staff API). Payments, webhooks and the ledger come next.
+> 🚧 **Status:** under active development. **Phases 0, 1 and 2 are complete**
+> (money primitives, schema, invoices, staff API, payment links with a fake gateway, idempotency keys). Stripe, webhooks and the ledger come next.
 
 ## What it does
 
@@ -34,10 +34,10 @@ Each row links to the test that proves it as the phases land.
 | Old invoices changing when a product price changes         | Prices and tax rate are copied onto the invoice (snapshot)                     | 1     | ✅     |
 | Invalid invoice transitions (paying a void invoice...)     | Explicit state machine, 409 on illegal transitions                             | 1     | ✅     |
 | Gaps in invoice numbers when an operation fails            | Counter table under row lock; rollback gives the number back                   | 1     | ✅     |
-| User clicks "pay" twice / client retries                   | Idempotency keys                                                               | 2     | ⬜     |
-| Customer opens an old email after the payment link expired | Stable pay URL; Stripe link created on demand and reused while alive           | 2     | ⬜     |
-| Two live payment links for the same invoice                | Partial unique index (schema ready), reuse logic                               | 2     | ⬜     |
-| Crash or timeout while creating a Stripe session           | `pending` row committed first, deterministic idempotency key                   | 2     | ⬜     |
+| User clicks "pay" twice / client retries                   | Idempotency keys                                                               | 2     | ✅     |
+| Customer opens an old email after the payment link expired | Stable pay URL; Stripe link created on demand and reused while alive           | 2     | ✅     |
+| Two live payment links for the same invoice                | Partial unique index (schema ready), reuse logic                               | 2     | ✅     |
+| Crash or timeout while creating a Stripe session           | `pending` row committed first, deterministic idempotency key                   | 2     | ✅     |
 | Forged webhooks                                            | HMAC-SHA256 signature verification, written by hand                            | 3     | ⬜     |
 | Replayed webhooks                                          | Timestamp tolerance                                                            | 3     | ⬜     |
 | Same event delivered twice                                 | Event-id deduplication                                                         | 3     | ⬜     |
@@ -94,6 +94,7 @@ curl -s http://localhost:8000/api/v1/products \
 | GET              | `/invoices?status=&customer=`   | List and filter                                               |
 | POST             | `/invoices/{id}/open` · `/void` | Open (gets its number) or void                                |
 | DELETE           | `/invoices/{id}`                | Discard a draft                                               |
+| GET              | `/pay/{id}`                     | Stable customer link; redirects to a live Stripe page         |
 
 Ids in URLs and responses are UUIDs. Amounts are integers in minor units (cents).
 Errors: 401 no token, 404 unknown id, 409 illegal state transition, 422 invalid input or business rule.
@@ -158,3 +159,8 @@ docs/                # business-logic.md and architecture decision records
 | 8     | Reconciliation                                      | ⬜     |
 | 9     | Polish: OpenAPI, mutation testing, end-to-end test  | ⬜     |
 | 10    | React dashboard (separate repository)               | ⬜     |
+
+### Idempotency
+
+The three invoice mutations (create, open, void) require an Idempotency-Key header (see docs/business-logic.md, section 4.11).
+Example:

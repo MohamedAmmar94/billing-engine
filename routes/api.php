@@ -7,6 +7,7 @@ use App\Billing\Http\Controllers\InvoiceController;
 use App\Billing\Http\Controllers\ProductController;
 use App\Http\Controllers\TokenController;
 use App\Payments\Http\Controllers\PayController;
+use App\Shared\Idempotency\IdempotencyMiddleware;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -19,10 +20,13 @@ Route::prefix('v1')->group(function (): void {
         Route::apiResource('products', ProductController::class)->only(['index', 'store', 'show', 'update']);
 
         Route::get('invoices', [InvoiceController::class, 'index']);
-        Route::post('invoices', [InvoiceController::class, 'store']);
         Route::get('invoices/{invoice}', [InvoiceController::class, 'show']);
         Route::delete('invoices/{invoice}', [InvoiceController::class, 'destroy']);
-        Route::post('invoices/{invoice}/open', [InvoiceController::class, 'open']);
-        Route::post('invoices/{invoice}/void', [InvoiceController::class, 'void']);
+        Route::middleware(IdempotencyMiddleware::class)->group(function (): void {
+
+            Route::post('invoices', [InvoiceController::class, 'store']);
+            Route::post('invoices/{invoice}/open', [InvoiceController::class, 'open']);
+            Route::post('invoices/{invoice}/void', [InvoiceController::class, 'void']);
+        });
     });
 });

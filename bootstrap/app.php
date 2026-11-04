@@ -24,9 +24,11 @@ return Application::configure(basePath: dirname(__DIR__))
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
         // قواعد البيزنس بتتحول لأكواد HTTP صريحة
-        $exceptions->render(fn (InvoiceStateException $e) => response()->json(['message' => $e->getMessage()], 409));
-        $exceptions->render(fn (InvalidInvoiceException $e) => response()->json(['message' => $e->getMessage()], 422));
+        $exceptions->render(fn (InvoiceStateException $e) => response()->json(['code' => 'invoice_state_conflict', 'message' => $e->getMessage()], 409));
+        $exceptions->render(fn (InvalidInvoiceException $e) => response()->json(['code' => 'invalid_invoice', 'message' => $e->getMessage()], 422));
 
     })
-    ->withCommands([__DIR__.'/../app/Payments/Console'])
+    ->withCommands([
+        __DIR__.'/../app/Payments/Console',
+        __DIR__.'/../app/Shared/Idempotency/Console'])
     ->create();

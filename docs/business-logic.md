@@ -84,8 +84,7 @@ corrections are done by voiding and issuing a new invoice. A voided invoice keep
 
 ### 4.4 Ask the customer to pay
 
-The customer gets a **stable URL** `GET /api/v1/pay/{invoice uuid}` that never changes
-(the invoice resource exposes it as `pay_url` while the invoice is open).
+The customer gets a **stable URL** GET /api/v1/pay/{invoice uuid} that never changes (the invoice resource exposes it as pay_url while the invoice is open).
 Stripe links expire, so a Stripe link is only created when the customer clicks.
 Staff can resend the same URL at any time.
 
@@ -107,7 +106,7 @@ The invoice is locked, then:
 
 Creating a link: (1) save a `pending` row and commit, no lock held while calling Stripe;
 (2) call Stripe with amount, expiry, `client_reference_id` and the idempotency key
-`invoice-{uuid}-link-{attempt}`; (3) store the session id and URL, status `open`.
+`invoice-{invoice uuid}-link-{attempt}`; (3) store the session id and URL, status `open`.
 At most **one live link (`pending` or `open`) per invoice**, enforced by a partial unique index.
 
 ### 4.6 Paying on Stripe
@@ -158,6 +157,26 @@ Staff requests an amount on a payment. Under a lock on the payment: sum of refun
 
 Passing `due_at` does not change the status. The invoice shows up in the AR Aging report.
 
+### 4.11 Retrying API calls safely (`Idempotency-Key`)
+
+`POST /invoices`, `POST /invoices/{id}/open` and `POST /invoices/{id}/void` require an
+`Idempotency-Key` header (8-255 characters: letters, digits, `-`, `_`; a UUID is recommended).
+One key per user intention; reuse it only to retry the same request.
+
+| Situation                                         | Response                                                                         |
+| ------------------------------------------------- | -------------------------------------------------------------------------------- |
+| First request with the key                        | Executed; the response is stored for 24 hours                                    |
+| Same key, same request, after it finished         | The stored response with `Idempotent-Replayed: true`                             |
+| Same key while the first request is still running | `409 idempotency_in_progress` + `Retry-After`                                    |
+| Same key, different body or endpoint              | `422 idempotency_key_reused`                                                     |
+| Missing or malformed key                          | `400 idempotency_key_missing` / `idempotency_key_invalid`                        |
+| First request failed with 5xx or 429              | Nothing stored, key released, a retry executes again                             |
+| Deterministic errors (404, 409, 422)              | Stored and replayed                                                              |
+| Request running for more than 60 s                | Taken over by the next attempt; the old one can no longer commit (fencing token) |
+
+The marker row is committed first; the business work and the stored response commit in one
+transaction, so "invoice created but no stored response" cannot happen. Keys are scoped per user.
+
 ## 5. Journal entries
 
 | Event                          | Debit                                | Credit                               |
@@ -185,12 +204,13 @@ payouts, automatic reminders, credit notes.
 
 ## 8. Implementation status
 
-| Step                                                                                | Status            |
-| ----------------------------------------------------------------------------------- | ----------------- |
-| 4.1 - 4.3 Customers, products, invoices: create, open, void, discard (domain + API) | ✅ Done (Phase 1) |
-| Staff authentication with API tokens                                                | ✅ Done (Phase 1) |
-| Idempotency-Key on invoice creation                                                 | Phase 2           |
-| 4.4 - 4.6 Pay URL and payment links                                                 | Phase 2           |
-| 4.7 Webhooks                                                                        | Phase 3           |
-| Journal entries (section 5)                                                         | Phase 4           |
-| 4.8 Refunds                                                                         | Phase 5           |
+| Step                                                                 | Status  |
+| -------------------------------------------------------------------- | ------- |
+| 4.1 - 4.3 Customers, products, invoices: create, open, void, discard | ✅ Done |
+| Staff authentication with API tokens                                 | ✅ Done |
+| 4.4 - 4.5 Stable pay URL and payment links (fake gateway)            | ✅ Done |
+| 4.6 Customer-facing result pages                                     | ✅ Done |
+| 4.11 Idempotency-Key                                                 | ✅ Done |
+| Stripe over HTTP and 4.7 Webhooks                                    | Phase 3 |
+| Journal entries (section 5)                                          | Phase 4 |
+| 4.8 Refunds                                                          | Phase 5 |
