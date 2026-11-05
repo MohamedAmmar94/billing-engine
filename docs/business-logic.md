@@ -109,6 +109,66 @@ Creating a link: (1) save a `pending` row and commit, no lock held while calling
 `invoice-{invoice uuid}-link-{attempt}`; (3) store the session id and URL, status `open`.
 At most **one live link (`pending` or `open`) per invoice**, enforced by a partial unique index.
 
+#### Payment link flow
+
+```mermaid
+flowchart TD
+    A(["Customer opens the pay URL<br/>GET /pay/{invoice uuid}"]) --> B{"Invoice status?"}
+    B -->|paid| B1["✅ 200 already_paid"]
+    B -->|"draft or void"| B2["⛔ 409 not_payable"]
+    B -->|open| C{"Live link?<br/>(pending or open)"}
+
+    C -->|none| N["Save a new link as PENDING<br/>attempt = last attempt + 1"]
+    C -->|open| V["Ask Stripe about the session"]
+    C -->|pending| P{"Pending for<br/>less than 120 s?"}
+
+    P -->|yes| W["⏳ 503 try_again<br/>someone is calling Stripe right now"]
+    P -->|no| X{"Close to expiry?"}
+    X -->|yes| Z["Cancel the old link"] --> N
+    X -->|"no: resume"| S
+
+    N --> S["Call Stripe<br/>key = invoice-uuid-link-attempt"]
+    S -->|"session created"| O["Link becomes OPEN<br/>store session id and url"] --> R["✅ 302 redirect to Stripe"]
+    S -->|timeout| T["Link stays PENDING"] --> W2["⏳ 503 try_again<br/>next time the same key is reused"]
+    S -->|rejected| K["Link becomes CANCELED"] --> U["⛔ 502 unavailable"]
+
+    V -->|complete| Q["⏳ 200 processing<br/>no new link, wait for the webhook"]
+    V -->|"open, enough time left"| R
+    V -->|"open, close to expiry"| E1["Expire it at Stripe<br/>link becomes CANCELED"] --> N
+    V -->|expired| E2["Link becomes EXPIRED"] --> N
+
+    W -.->|"customer clicks again"| A
+    W2 -.->|"customer clicks again"| A
+
+    classDef start fill:#e0e7ff,stroke:#4f46e5,color:#1e1b4b
+    classDef dec fill:#fef9c3,stroke:#ca8a04,color:#422006
+    classDef act fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef good fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef wait fill:#ffedd5,stroke:#ea580c,color:#7c2d12
+    classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+    class A start
+    class B,C,P,X dec
+    class N,V,S,Z,O,T,K,E1,E2 act
+    class B1,R good
+    class W,W2,Q wait
+    class B2,U bad
+```
+
+The row created on the first click lives in `payment_links` (a `payments` row only exists once the
+webhook confirms the money arrived). There is **no background retry**: every new click by the
+customer is the retry.
+
+| Customer action                             | Result                                                                                                                   |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| First click                                 | Redirect to Stripe, or `503` if Stripe timed out (the link stays `pending`)                                              |
+| Clicks again within 120 s of a pending link | `503 try_again`, no new call to Stripe                                                                                   |
+| Clicks again after 120 s                    | The same Stripe call is resumed with the same idempotency key; Stripe returns the same session if it already created one |
+| The link expired or is about to             | The old link is closed (`expired` / `canceled`) and a new attempt is created                                             |
+| Paid, webhook not received yet              | `200 processing`, no new link                                                                                            |
+
+Inside one request the code loops at most 3 rounds, which only matters when an old link must
+be retired and a new attempt created.
+
 ### 4.6 Paying on Stripe
 
 Declined cards are retried inside Stripe's page; we see nothing.
@@ -177,6 +237,50 @@ One key per user intention; reuse it only to retry the same request.
 
 The marker row is committed first; the business work and the stored response commit in one
 transaction, so "invoice created but no stored response" cannot happen. Keys are scoped per user.
+
+#### Idempotency flow
+
+```mermaid
+flowchart TD
+    A(["POST create / open / void<br/>with Idempotency-Key"]) --> B{"Key present<br/>and well formed?"}
+    B -->|no| B1["⛔ 400 missing or invalid"]
+    B -->|yes| C["Insert a marker row<br/>unique per user + key"]
+    C --> D{"Insert won?"}
+
+    D -->|yes| E["BEGIN transaction<br/>run the business action"]
+    D -->|no| F["Read the existing row"]
+
+    F --> G{"Older than 24 h?"}
+    G -->|yes| G1["Delete it"] --> C
+    G -->|no| H{"Same request<br/>fingerprint?"}
+    H -->|no| H1["⛔ 422 key reused"]
+    H -->|yes| I{"Response<br/>stored?"}
+    I -->|yes| I1["✅ Replay the stored response<br/>header Idempotent-Replayed: true"]
+    I -->|no| J{"Locked for more<br/>than 60 s?"}
+    J -->|no| J1["⏳ 409 in progress<br/>Retry-After: 2"]
+    J -->|yes| K["Take over:<br/>write a new lock token"]
+    K --> E
+
+    E --> L{"Result of the action"}
+    L -->|"2xx, 404, 409, 422"| M{"Still holding<br/>my lock token?"}
+    L -->|"5xx, 429 or exception"| N["ROLLBACK<br/>delete the marker"]
+    N --> N1["Return the error<br/>a retry will run again"]
+    M -->|yes| O["Store the response<br/>and COMMIT"] --> O1["✅ Return the response"]
+    M -->|"no: someone took over"| P["ROLLBACK"] --> J1
+
+    classDef start fill:#e0e7ff,stroke:#4f46e5,color:#1e1b4b
+    classDef dec fill:#fef9c3,stroke:#ca8a04,color:#422006
+    classDef act fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef good fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef wait fill:#ffedd5,stroke:#ea580c,color:#7c2d12
+    classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+    class A start
+    class B,D,G,H,I,J,L,M dec
+    class C,E,F,G1,K,N,O,P act
+    class I1,O1 good
+    class J1 wait
+    class B1,H1,N1 bad
+```
 
 ## 5. Journal entries
 
