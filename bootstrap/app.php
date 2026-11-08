@@ -30,5 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withCommands([
         __DIR__.'/../app/Payments/Console',
-        __DIR__.'/../app/Shared/Idempotency/Console'])
+        __DIR__.'/../app/Shared/Idempotency/Console',
+        __DIR__.'/../app/Webhooks/Console',
+    ])
     ->create();

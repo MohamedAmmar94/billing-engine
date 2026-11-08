@@ -7,10 +7,12 @@ namespace App\Providers;
 use App\Billing\Events\InvoiceVoidedEvent;
 use App\Payments\Gateway\Fake\FakeGateway;
 use App\Payments\Gateway\PaymentGatewayInterface;
+use App\Payments\Gateway\Stripe\StripeGateway;
 use App\Payments\Listeners\CancelLiveLinksOnVoidListener;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
+use InvalidArgumentException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,8 +21,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(PaymentGatewayInterface::class, FakeGateway::class);
-
+        // $this->app->singleton(PaymentGatewayInterface::class, FakeGateway::class);
+        $this->app->singleton(PaymentGatewayInterface::class, fn (): PaymentGatewayInterface => match (config()->string('payments.gateway')) {
+            'stripe' => new StripeGateway,
+            'fake' => new FakeGateway,
+            default => throw new InvalidArgumentException('Unknown payment gateway configured.'),
+        });
     }
 
     /**

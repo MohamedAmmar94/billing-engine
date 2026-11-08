@@ -183,18 +183,19 @@ Endpoint: verify signature and timestamp (bad = 400), store the event by its uni
 Job (one transaction, invoice locked before link): find the link by `client_reference_id`,
 check amount and currency.
 
-| Situation                                                            | Payment                            | Invoice   | Link        | Journal entry                                                      |
-| -------------------------------------------------------------------- | ---------------------------------- | --------- | ----------- | ------------------------------------------------------------------ |
-| Normal                                                               | `is_applied = true`                | `paid`    | `completed` | Dr Gateway Clearing / Cr Receivable                                |
-| Paid on a link that just expired or was canceled, invoice still open | same as normal (the money is real) | `paid`    | `completed` | same                                                               |
-| Invoice already `paid` (second link)                                 | `is_applied = false`               | unchanged | `completed` | Dr Gateway Clearing / Cr Unapplied Payments, then automatic refund |
-| Invoice `void`                                                       | `is_applied = false`               | unchanged | `completed` | same as above                                                      |
-| Amount or currency mismatch                                          | `is_applied = false`               | unchanged | `completed` | same as above, flagged for review                                  |
-| Session not ours                                                     |                                    |           |             | ignored                                                            |
-| Same event twice                                                     | not processed again                |           |             |                                                                    |
-| Job fails                                                            |                                    |           |             | retry with backoff, then dead-letter + replay command              |
-| Webhook never arrives                                                |                                    |           |             | reconciliation finds it                                            |
+| Situation                                                                                                     | Payment                                                                       | Invoice   | Link        | Journal entry                                                      |
+| ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | --------- | ----------- | ------------------------------------------------------------------ | --- |
+| Normal                                                                                                        | `is_applied = true`                                                           | `paid`    | `completed` | Dr Gateway Clearing / Cr Receivable                                |
+| Paid on a link our database already marked `expired` (the webhook arrived late) and the invoice is still open | New payment, `is_applied = true` (same as the normal case; the money is real) | `paid`    | `completed` | Dr Gateway Clearing / Cr Receivable                                |     |
+| Invoice already `paid` (second link)                                                                          | `is_applied = false`                                                          | unchanged | `completed` | Dr Gateway Clearing / Cr Unapplied Payments, then automatic refund |
+| Invoice `void`                                                                                                | `is_applied = false`                                                          | unchanged | `completed` | same as above                                                      |
+| Amount or currency mismatch                                                                                   | `is_applied = false`                                                          | unchanged | `completed` | same as above, flagged for review                                  |
+| Session not ours                                                                                              |                                                                               |           |             | ignored                                                            |
+| Same event twice                                                                                              | not processed again                                                           |           |             |                                                                    |
+| Job fails                                                                                                     |                                                                               |           |             | retry with backoff, then dead-letter + replay command              |
+| Webhook never arrives                                                                                         |                                                                               |           |             | reconciliation finds it                                            |
 
+The link status is only our bookkeeping and can lag behind Stripe, so it is never used to decide whether money is accepted; only the invoice state, the amount and the currency are.
 After commit, any other live link of the invoice is expired at Stripe and marked `canceled`.
 
 ### 4.8 Refund (full or partial)

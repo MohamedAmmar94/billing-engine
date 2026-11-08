@@ -14,7 +14,16 @@ return [
 
     // الصف الـ pending اللي أصغر من كده معناه إن حد تاني بيكلم Stripe دلوقتي
     'pending_grace_seconds' => 120,
-
+    'stripe' => [
+        'secret' => env('STRIPE_SECRET', ''),
+        'api_version' => env('STRIPE_API_VERSION', ''),
+        'base_url' => env('STRIPE_BASE_URL', 'https://api.stripe.com'),
+        'connect_timeout' => 3,
+        'timeout' => 10,
+        // أكتر من سر مفصولين بفاصلة (وقت تغيير السر)
+        'webhook_secrets' => array_values(array_filter(explode(',', (string) env('STRIPE_WEBHOOK_SECRET', '')))),
+        'webhook_tolerance' => 300,
+    ],
     // 'success_url' => env('PAYMENT_SUCCESS_URL', 'http://localhost:3000/payment/success'),
     // 'cancel_url' => env('PAYMENT_CANCEL_URL', 'http://localhost:3000/payment/cancel'),
 ];

@@ -164,6 +164,7 @@ final class ResolvePaymentLinkAction
                 'url' => $session->url,
                 'status' => PaymentLinkStatusEnum::Open,
                 'expires_at' => $session->expiresAt,
+                'response' => $session->raw === [] ? null : $session->raw,
             ]);
 
             return PayResolutionDTO::redirect((string) $session->url);
