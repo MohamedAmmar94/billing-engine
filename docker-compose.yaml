@@ -59,7 +59,15 @@ services:
         volumes:
             - billing_engine_redis_data:/data
         # restart: always
-
+    billing_engine_stripe:
+        image: stripe/stripe-cli:latest
+        container_name: billing_engine_stripe
+        profiles: ["stripe"]
+        environment:
+            STRIPE_API_KEY: ${STRIPE_SECRET}
+        command: listen --events checkout.session.completed,checkout.session.expired --forward-to http://billing_engine_app/api/webhooks/stripe
+        depends_on:
+            - billing_engine_app
 volumes:
     billing_engine_db_data:
     billing_engine_redis_data:
