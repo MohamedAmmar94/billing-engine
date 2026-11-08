@@ -22,6 +22,7 @@ class PaymentLink extends Model
         'status' => PaymentLinkStatusEnum::class,
         'expires_at' => 'datetime',
         'attempt' => 'integer',
+        'response' => 'array',
     ];
 
     /** @return BelongsTo<Invoice, $this> */
