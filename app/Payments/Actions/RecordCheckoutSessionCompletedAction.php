@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace App\Payments\Actions;
 
@@ -18,13 +18,16 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /** الدفع اتأكد من Stripe: ننشئ Payment ونقفل الفاتورة واللينك في transaction واحدة. */
-final class RecordCheckoutSessionCompletedAction {
-    public function handle(CheckoutSessionCompletedDTO $data): PaymentRecordingOutcomeEnum {
+final class RecordCheckoutSessionCompletedAction
+{
+    public function handle(CheckoutSessionCompletedDTO $data): PaymentRecordingOutcomeEnum
+    {
         if ($data->paymentStatus !== 'paid') {
             Log::warning('A completed checkout session is not paid', [
-                'session'        => $data->sessionId,
+                'session' => $data->sessionId,
                 'payment_status' => $data->paymentStatus,
             ]);
+
             return PaymentRecordingOutcomeEnum::NotPaid;
         }
 
@@ -42,25 +45,25 @@ final class RecordCheckoutSessionCompletedAction {
         return DB::transaction(function () use ($data, $known): PaymentRecordingOutcomeEnum {
             // نفس ترتيب الـ locks دايماً: الفاتورة ثم اللينك
             $invoice = Invoice::query()->whereKey($known->invoice_id)->lockForUpdate()->firstOrFail();
-            $link    = PaymentLink::query()->whereKey($known->id)->lockForUpdate()->firstOrFail();
+            $link = PaymentLink::query()->whereKey($known->id)->lockForUpdate()->firstOrFail();
 
             if (Payment::query()->where('payment_link_id', $link->id)->exists()) {
                 return PaymentRecordingOutcomeEnum::AlreadyRecorded;
             }
 
             $currency = strtoupper($data->currency);
-            $applies  = $invoice->status === InvoiceStatusEnum::Open
+            $applies = $invoice->status === InvoiceStatusEnum::Open
             && $data->amountTotal === $invoice->total
             && $currency === $invoice->currency;
 
             $payment = Payment::query()->create([
-                'invoice_id'               => $invoice->id,
-                'payment_link_id'          => $link->id,
+                'invoice_id' => $invoice->id,
+                'payment_link_id' => $link->id,
                 'stripe_payment_intent_id' => $data->paymentIntentId,
-                'amount'                   => $data->amountTotal,
-                'currency'                 => $currency,
-                'is_applied'               => $applies,
-                'paid_at'                  => $data->paidAt,
+                'amount' => $data->amountTotal,
+                'currency' => $currency,
+                'is_applied' => $applies,
+                'paid_at' => $data->paidAt,
             ]);
 
             // الفلوس حقيقية حتى لو اللينك اتعلّم expired أو canceled في آخر لحظة
@@ -73,7 +76,7 @@ final class RecordCheckoutSessionCompletedAction {
                 Log::warning('Payment received but not applied to the invoice', [
                     'invoice' => $invoice->uuid,
                     'payment' => $payment->uuid,
-                    'reason'  => $invoice->status === InvoiceStatusEnum::Open
+                    'reason' => $invoice->status === InvoiceStatusEnum::Open
                         ? 'amount or currency mismatch'
                         : "invoice is {$invoice->status->value}",
                 ]);
@@ -86,7 +89,8 @@ final class RecordCheckoutSessionCompletedAction {
         });
     }
 
-    private function cancelOtherLiveLinks(Invoice $invoice, PaymentLink $paid): void {
+    private function cancelOtherLiveLinks(Invoice $invoice, PaymentLink $paid): void
+    {
         $others = $invoice->paymentLinks()
             ->whereKeyNot($paid->id)
             ->whereIn('status', PaymentLinkStatusEnum::liveValues())
