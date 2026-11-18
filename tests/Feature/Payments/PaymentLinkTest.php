@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 use App\Billing\Actions\VoidInvoiceAction;
 use App\Billing\Enums\InvoiceStatusEnum;
@@ -18,13 +18,13 @@ beforeEach(function () {
 });
 
 // ---------- الحالة العادية ----------
-//payUrl($this->invoice): just return route of pay with invoice uuid for testing
-//linkOf($this->invoice): just return last row of PaymentLink using invoice_id for testing
-//assertRedirect : means i expected a redirect response with specific url
-//liveLinkCount: just return number of live PaymentLinks(open or pending) for testing
+// payUrl($this->invoice): just return route of pay with invoice uuid for testing
+// linkOf($this->invoice): just return last row of PaymentLink using invoice_id for testing
+// assertRedirect : means i expected a redirect response with specific url
+// liveLinkCount: just return number of live PaymentLinks(open or pending) for testing
 it('creates a link on the first visit and sends the customer to Stripe', function () {
     $response = $this->get(payUrl($this->invoice));
-    $link     = linkOf($this->invoice);
+    $link = linkOf($this->invoice);
 
     $response->assertRedirect($link->url);
     expect($link->status)->toBe(PaymentLinkStatusEnum::Open)
@@ -52,7 +52,7 @@ it('replaces a link that expired at Stripe (problem: customer opens an old email
     fakeGateway()->expire($old->stripe_session_id);
 
     $response = $this->get(payUrl($this->invoice));
-    $new      = linkOf($this->invoice);
+    $new = linkOf($this->invoice);
 
     $response->assertRedirect($new->url);
     expect($old->fresh()->status)->toBe(PaymentLinkStatusEnum::Expired)
@@ -101,8 +101,8 @@ it('does not create anything for invoices that cannot be paid', function (Invoic
     expect(PaymentLink::query()->count())->toBe(0)
         ->and(fakeGateway()->calls('create'))->toBe(0);
 })->with([
-    'paid'  => [InvoiceStatusEnum::Paid, 200, 'already_paid'],
-    'void'  => [InvoiceStatusEnum::Void, 409, 'not_payable'],
+    'paid' => [InvoiceStatusEnum::Paid, 200, 'already_paid'],
+    'void' => [InvoiceStatusEnum::Void, 409, 'not_payable'],
     'draft' => [InvoiceStatusEnum::Draft, 409, 'not_payable'],
 ]);
 
@@ -184,8 +184,8 @@ it('asks the customer to retry when Stripe cannot be reached while checking a li
 it('lets the database refuse a second live link even if the code were wrong', function () {
     $attributes = ['invoice_id' => $this->invoice->id, 'status' => 'pending', 'expires_at' => now()->addHour()];
 
-    PaymentLink::query()->create([ ...$attributes, 'attempt' => 1]);
-    PaymentLink::query()->create([ ...$attributes, 'attempt' => 2]);
+    PaymentLink::query()->create([...$attributes, 'attempt' => 1]);
+    PaymentLink::query()->create([...$attributes, 'attempt' => 2]);
 })->throws(QueryException::class, 'payment_links_one_live_per_invoice');
 
 // ---------- الإلغاء والتنظيف ----------
