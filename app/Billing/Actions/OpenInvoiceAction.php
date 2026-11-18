@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace App\Billing\Actions;
 
@@ -12,10 +12,12 @@ use App\Billing\Models\Invoice;
 use App\Billing\Support\InvoiceNumberGeneratorService;
 use Illuminate\Support\Facades\DB;
 
-final class OpenInvoiceAction {
+final class OpenInvoiceAction
+{
     public function __construct(private readonly InvoiceNumberGeneratorService $numbers) {}
 
-    public function handle(Invoice $invoice): Invoice {
+    public function handle(Invoice $invoice): Invoice
+    {
         return DB::transaction(function () use ($invoice): Invoice {
             $invoice = $invoice->lockedCopy();
 
@@ -31,10 +33,10 @@ final class OpenInvoiceAction {
             $issuedAt = now();
 
             $invoice->update([
-                'number'    => $this->numbers->next(),
-                'status'    => InvoiceStatusEnum::Open,
+                'number' => $this->numbers->next(),
+                'status' => InvoiceStatusEnum::Open,
                 'issued_at' => $issuedAt,
-                'due_at'    => $issuedAt->copy()->addDays(config()->integer('billing.payment_terms_days')),
+                'due_at' => $issuedAt->copy()->addDays(config()->integer('billing.payment_terms_days')),
             ]);
 
             // نقطة التوسع: Phase 4 هتسجل القيد المحاسبي هنا جوه نفس الـ transaction
