@@ -22,6 +22,9 @@ should be visible in the code rather than hidden inside a library.
 
 - (+) No dependency in the most sensitive code path; failure handling is explicit and testable with `Http::fake()`.
 - (-) We maintain request encoding (form-encoded nested parameters), pagination and error parsing ourselves.
+- (+) Pinning `Stripe-Version` is explicit. A real incident motivated it: API version
+  `2026-09-30.endive` removed `payment_method_types` from Checkout Session creation and an
+  unpinned integration started failing. Card-only is now enforced with `allowed_payment_method_types`.
 
 ## Alternatives considered
 

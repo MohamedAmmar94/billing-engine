@@ -38,11 +38,11 @@ Each row links to the test that proves it as the phases land.
 | Customer opens an old email after the payment link expired | Stable pay URL; Stripe link created on demand and reused while alive           | 2     | ✅     |
 | Two live payment links for the same invoice                | Partial unique index (schema ready), reuse logic                               | 2     | ✅     |
 | Crash or timeout while creating a Stripe session           | `pending` row committed first, deterministic idempotency key                   | 2     | ✅     |
-| Forged webhooks                                            | HMAC-SHA256 signature verification, written by hand                            | 3     | ⬜     |
-| Replayed webhooks                                          | Timestamp tolerance                                                            | 3     | ⬜     |
-| Same event delivered twice                                 | Event-id deduplication                                                         | 3     | ⬜     |
-| Handler failure                                            | Retry with exponential backoff, dead-letter queue, replay command              | 3     | ⬜     |
-| Customer pays on a dead link or pays twice                 | `is_applied` flag, Unapplied Payments account, automatic refund                | 3     | ⬜     |
+| Forged webhooks                                            | HMAC-SHA256 signature verification, written by hand                            | 3     | ✅     |
+| Replayed webhooks                                          | Timestamp tolerance                                                            | 3     | ✅     |
+| Same event delivered twice                                 | Event-id deduplication                                                         | 3     | ✅     |
+| Handler failure                                            | Retry with exponential backoff, dead-letter queue, replay command              | 3     | ✅     |
+| Customer pays on a dead link or pays twice                 | `is_applied` flag, Unapplied Payments account, automatic refund                | 3     | ✅     |
 | Unbalanced or tampered accounting entries                  | Balance enforced in code **and** by a deferred database trigger (schema ready) | 4     | ⬜     |
 | Payment succeeded but no journal entry                     | Ledger posting in the same transaction as the payment                          | 4     | ⬜     |
 | Refunds exceeding the amount paid                          | `lockForUpdate` inside a transaction                                           | 5     | ⬜     |
@@ -71,6 +71,23 @@ docker compose exec billing-engine_app php artisan migrate --seed
 The API is served at <http://localhost:8000/api/v1>. pgAdmin is at <http://localhost:8080>.
 With the `local` environment the seeder creates a demo staff user (`admin@example.com` / `password`),
 three customers and five products. These credentials are for local development only.
+
+### Stripe (test mode)
+
+```bash
+# .env
+PAYMENT_GATEWAY=stripe
+STRIPE_SECRET=sk_test_...
+STRIPE_API_VERSION=<the version shown in your Stripe Workbench>
+STRIPE_WEBHOOK_SECRET=whsec_...   # printed by the Stripe CLI below
+
+docker compose --profile stripe up -d
+docker compose logs billing_engine_stripe   # copy the whsec_ secret
+```
+
+Without a Stripe account, keep `PAYMENT_GATEWAY=fake` and complete a payment with
+`php artisan stripe:simulate-webhook <payment-link-uuid>`.
+Production destinations must use **snapshot** events for `checkout.session.completed` and `checkout.session.expired`.
 
 ## API tour
 
@@ -150,8 +167,8 @@ docs/                # business-logic.md and architecture decision records
 | ----- | --------------------------------------------------- | ------ |
 | 0     | Foundation: Docker, tooling, CI, `Money`            | ✅     |
 | 1     | Schema, invoices, staff API with tokens             | ✅     |
-| 2     | Payment links, payments, idempotency (fake gateway) | ⬜     |
-| 3     | Stripe over HTTP and webhooks                       | ⬜     |
+| 2     | Payment links, payments, idempotency (fake gateway) | ✅     |
+| 3     | Stripe over HTTP and webhooks                       | ✅     |
 | 4     | General ledger: journal entries and balances        | ⬜     |
 | 5     | Refunds (full and partial)                          | ⬜     |
 | 6     | Concurrency hardening                               | ⬜     |

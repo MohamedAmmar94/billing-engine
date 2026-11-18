@@ -174,7 +174,7 @@ be retired and a new attempt created.
 
 Declined cards are retried inside Stripe's page; we see nothing.
 The success redirect is **never trusted**; only the webhook confirms a payment.
-Card only, full invoice amount only.
+Card only (enforced with `allowed_payment_method_types = card` on every session), full invoice amount only.
 The success page reads the invoice status from the database and refreshes until the webhook has marked it paid.
 
 ### 4.7 The webhook (`checkout.session.completed`)
@@ -195,6 +195,59 @@ check amount and currency.
 | Same event twice                                                                                              | not processed again                                                           |           |             |                                                                    |
 | Job fails                                                                                                     |                                                                               |           |             | retry with backoff, then dead-letter + replay command              |
 | Webhook never arrives                                                                                         |                                                                               |           |             | reconciliation finds it                                            |
+
+#### Webhook pipeline
+
+```mermaid
+flowchart TD
+    A(["Stripe sends<br/>POST /api/webhooks/stripe"]) --> B{"Valid signature<br/>and fresh timestamp?"}
+    B -->|no| B1["⛔ 400 rejected"]
+    B -->|yes| C["Store the raw event<br/>unique per Stripe event id"]
+    C --> D{"Already stored?"}
+    D -->|yes| D1["✅ 200 duplicate, nothing to do"]
+    D -->|no| E["Queue the processing job"]
+    E --> F["✅ 200 received"]
+
+    E -.-> G["Worker takes the job"]
+    G --> H{"Event type?"}
+    H -->|"not handled"| I1["Mark IGNORED"]
+    H -->|"session.expired"| X["Link still live?<br/>mark it EXPIRED"]
+    H -->|"session.completed"| J{"Link found by<br/>client_reference_id<br/>and session paid?"}
+    J -->|no| I1
+    J -->|yes| K["BEGIN: lock invoice, then link"]
+    K --> L{"Invoice open and<br/>amount + currency match?"}
+    L -->|yes| M["Payment applied<br/>Invoice PAID<br/>Link COMPLETED"]
+    L -->|"no: already paid,<br/>void or mismatch"| N["Payment NOT applied<br/>flag for review"]
+    M --> O["Cancel other live links<br/>(expire at Stripe after commit)"]
+    N --> P
+    O --> P["COMMIT<br/>event PROCESSED"]
+    X --> P
+
+    G -->|"handler throws"| Q["Retry with backoff<br/>10 s, 1 m, 5 m, 15 m"]
+    Q -->|"5 tries failed"| R["Event DEAD<br/>webhooks:replay re-queues it"]
+
+    classDef start fill:#e0e7ff,stroke:#4f46e5,color:#1e1b4b
+    classDef dec fill:#fef9c3,stroke:#ca8a04,color:#422006
+    classDef act fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef good fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef wait fill:#ffedd5,stroke:#ea580c,color:#7c2d12
+    classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+    class A start
+    class B,D,H,J,L dec
+    class C,E,G,K,M,O,X act
+    class D1,F,P good
+    class I1,N,Q wait
+    class B1,R bad
+```
+
+Events subscribed to (configure the destination as **Snapshot**, not Thin):
+
+| Event                        | Used for                                  |
+| ---------------------------- | ----------------------------------------- |
+| `checkout.session.completed` | Record the payment, mark the invoice paid |
+| `checkout.session.expired`   | Mark a still-live link expired            |
+
+Any other event is stored and marked `ignored`. If a completed session is not `paid`, a warning is logged and the event is ignored.
 
 The link status is only our bookkeeping and can lag behind Stripe, so it is never used to decide whether money is accepted; only the invoice state, the amount and the currency are.
 After commit, any other live link of the invoice is expired at Stripe and marked `canceled`.
@@ -331,13 +384,12 @@ payouts, automatic reminders, credit notes.
 
 ## 8. Implementation status
 
-| Step                                                                 | Status  |
-| -------------------------------------------------------------------- | ------- |
-| 4.1 - 4.3 Customers, products, invoices: create, open, void, discard | ✅ Done |
-| Staff authentication with API tokens                                 | ✅ Done |
-| 4.4 - 4.5 Stable pay URL and payment links (fake gateway)            | ✅ Done |
-| 4.6 Customer-facing result pages                                     | ✅ Done |
-| 4.11 Idempotency-Key                                                 | ✅ Done |
-| Stripe over HTTP and 4.7 Webhooks                                    | Phase 3 |
-| Journal entries (section 5)                                          | Phase 4 |
-| 4.8 Refunds                                                          | Phase 5 |
+| Step                                                                  | Status  |
+| --------------------------------------------------------------------- | ------- |
+| 4.1 - 4.3 Customers, products, invoices: create, open, void, discard  | ✅ Done |
+| Staff authentication with API tokens                                  | ✅ Done |
+| 4.4 - 4.6 Stable pay URL and payment links (fake and Stripe gateways) | ✅ Done |
+| 4.11 Idempotency-Key                                                  | ✅ Done |
+| 4.7 Webhooks: signature, dedupe, retries, dead-letter, replay         | ✅ Done |
+| Journal entries (section 5)                                           | Phase 4 |
+| 4.8 Refunds and automatic refund of unapplied payments                | Phase 5 |

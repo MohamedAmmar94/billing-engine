@@ -15,3 +15,4 @@ Full walkthrough with every edge case: [docs/business-logic.md](docs/business-lo
 | [0007](0007-class-names-state-their-role.md) | Class names state their role | Accepted |
 | [0008](0008-stripe-over-plain-http.md) | Call Stripe over plain HTTP instead of the SDK | Accepted |
 | [0009](0009-idempotency-keys.md) | Idempotency keys for money-affecting API calls | Accepted |
+| [0010](0010-webhook-processing.md) | Webhook ingestion: verify, store, acknowledge, process later | Accepted |
