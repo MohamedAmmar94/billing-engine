@@ -22,6 +22,7 @@ final class OpenInvoiceAction
             $invoice = $invoice->lockedCopy();
 
             if (! $invoice->status->canTransitionTo(InvoiceStatusEnum::Open)) {
+                // $invoice->status return Enum which contain canTransitionTo() method
                 throw InvoiceStateException::cannot('open', $invoice->status);
             }
 

@@ -14,14 +14,16 @@ use Laravel\Sanctum\Sanctum;
 
 beforeEach(function () {
     $this->seed(SequenceSeeder::class);
-    $this->invoice = openInvoice();
+    $this->invoice = openInvoice(); // create invoice from draft in billing helper draftInvoice  and make it open
 });
 
 // ---------- الحالة العادية ----------
-
+// payUrl($this->invoice): just return route of pay with invoice uuid for testing
+// linkOf($this->invoice): just return last row of PaymentLink using invoice_id for testing
+// assertRedirect : means i expected a redirect response with specific url
+// liveLinkCount: just return number of live PaymentLinks(open or pending) for testing
 it('creates a link on the first visit and sends the customer to Stripe', function () {
     $response = $this->get(payUrl($this->invoice));
-    // dd(payUrl($this->invoice), $response);
     $link = linkOf($this->invoice);
 
     $response->assertRedirect($link->url);

@@ -23,6 +23,11 @@ final class RecordCheckoutSessionCompletedAction
     public function handle(CheckoutSessionCompletedDTO $data): PaymentRecordingOutcomeEnum
     {
         if ($data->paymentStatus !== 'paid') {
+            Log::warning('A completed checkout session is not paid', [
+                'session' => $data->sessionId,
+                'payment_status' => $data->paymentStatus,
+            ]);
+
             return PaymentRecordingOutcomeEnum::NotPaid;
         }
 

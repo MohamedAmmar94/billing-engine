@@ -15,7 +15,7 @@ class PaymentLink extends Model
     use HasPublicUuid;
 
     protected $fillable = [
-        'invoice_id', 'attempt', 'stripe_session_id', 'url', 'status', 'expires_at',
+        'invoice_id', 'attempt', 'stripe_session_id', 'url', 'status', 'expires_at', 'response',
     ];
 
     protected $casts = [

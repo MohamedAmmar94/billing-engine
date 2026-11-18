@@ -53,3 +53,4 @@ pest()->extend(TestCase::class)
 require_once __DIR__.'/Helpers/billing.php';
 require_once __DIR__.'/Helpers/payments.php';
 require_once __DIR__.'/Helpers/idempotency.php';
+require_once __DIR__.'/Helpers/webhooks.php';
