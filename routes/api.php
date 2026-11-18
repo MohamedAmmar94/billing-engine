@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 use App\Billing\Http\Controllers\CustomerController;
 use App\Billing\Http\Controllers\InvoiceController;
@@ -29,8 +29,12 @@ Route::prefix('v1')->group(function (): void {
         Route::middleware(IdempotencyMiddleware::class)->group(function (): void {
 
             Route::post('invoices', [InvoiceController::class, 'store']);
-            Route::post('invoices/{invoice}/open', [InvoiceController::class, 'open']);
-            Route::post('invoices/{invoice}/void', [InvoiceController::class, 'void']);
+            Route::middleware(IdempotencyMiddleware::class)->group(function (): void {
+
+                Route::post('invoices', [InvoiceController::class, 'store']);
+                Route::post('invoices/{invoice}/open', [InvoiceController::class, 'open']);
+                Route::post('invoices/{invoice}/void', [InvoiceController::class, 'void']);
+            });
         });
     });
 });

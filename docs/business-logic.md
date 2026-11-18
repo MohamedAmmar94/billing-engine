@@ -85,6 +85,7 @@ corrections are done by voiding and issuing a new invoice. A voided invoice keep
 ### 4.4 Ask the customer to pay
 
 The customer gets a **stable URL** GET /api/v1/pay/{invoice uuid} that never changes (the invoice resource exposes it as pay_url while the invoice is open).
+The customer gets a **stable URL** GET /api/v1/pay/{invoice uuid} that never changes (the invoice resource exposes it as pay_url while the invoice is open).
 Stripe links expire, so a Stripe link is only created when the customer clicks.
 Staff can resend the same URL at any time.
 
@@ -106,7 +107,7 @@ The invoice is locked, then:
 
 Creating a link: (1) save a `pending` row and commit, no lock held while calling Stripe;
 (2) call Stripe with amount, expiry, `client_reference_id` and the idempotency key
-`invoice-{invoice uuid}-link-{attempt}`; (3) store the session id and URL, status `open`.
+`invoice-{invoice invoice uuid}-link-{attempt}`; (3) store the session id and URL, status `open`.
 At most **one live link (`pending` or `open`) per invoice**, enforced by a partial unique index.
 
 #### Payment link flow
@@ -218,6 +219,26 @@ Staff requests an amount on a payment. Under a lock on the payment: sum of refun
 ### 4.10 Late invoices
 
 Passing `due_at` does not change the status. The invoice shows up in the AR Aging report.
+
+### 4.11 Retrying API calls safely (`Idempotency-Key`)
+
+`POST /invoices`, `POST /invoices/{id}/open` and `POST /invoices/{id}/void` require an
+`Idempotency-Key` header (8-255 characters: letters, digits, `-`, `_`; a UUID is recommended).
+One key per user intention; reuse it only to retry the same request.
+
+| Situation                                         | Response                                                                         |
+| ------------------------------------------------- | -------------------------------------------------------------------------------- |
+| First request with the key                        | Executed; the response is stored for 24 hours                                    |
+| Same key, same request, after it finished         | The stored response with `Idempotent-Replayed: true`                             |
+| Same key while the first request is still running | `409 idempotency_in_progress` + `Retry-After`                                    |
+| Same key, different body or endpoint              | `422 idempotency_key_reused`                                                     |
+| Missing or malformed key                          | `400 idempotency_key_missing` / `idempotency_key_invalid`                        |
+| First request failed with 5xx or 429              | Nothing stored, key released, a retry executes again                             |
+| Deterministic errors (404, 409, 422)              | Stored and replayed                                                              |
+| Request running for more than 60 s                | Taken over by the next attempt; the old one can no longer commit (fencing token) |
+
+The marker row is committed first; the business work and the stored response commit in one
+transaction, so "invoice created but no stored response" cannot happen. Keys are scoped per user.
 
 ### 4.11 Retrying API calls safely (`Idempotency-Key`)
 
