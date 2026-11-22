@@ -359,14 +359,33 @@ flowchart TD
 
 ## 5. Journal entries
 
-| Event                          | Debit                                | Credit                               |
-| ------------------------------ | ------------------------------------ | ------------------------------------ |
-| Invoice opened                 | 1100 Accounts Receivable (total)     | 4010 Sales Revenue, 2100 Tax Payable |
-| Payment applied                | 1010 Gateway Clearing                | 1100 Accounts Receivable             |
-| Payment not applied            | 1010 Gateway Clearing                | 2200 Unapplied Payments              |
-| Refund of an applied payment   | 4020 Sales Refunds, 2100 Tax Payable | 1010 Gateway Clearing                |
-| Refund of an unapplied payment | 2200 Unapplied Payments              | 1010 Gateway Clearing                |
-| Open invoice voided            | 4010 Sales Revenue, 2100 Tax Payable | 1100 Accounts Receivable             |
+Entries are posted by `LedgerService`, inside the transaction of the operation that caused them.
+Each entry is identified by (source type, source id, event) and can exist only once.
+
+| Event                                                                       | Entry                                           | Debit                                | Credit                                                          |
+| --------------------------------------------------------------------------- | ----------------------------------------------- | ------------------------------------ | --------------------------------------------------------------- |
+| Invoice opened                                                              | `invoice` / `opened`                            | 1100 Accounts Receivable (total)     | 4010 Sales Revenue (subtotal), 2100 Tax Payable (tax, when > 0) |
+| Invoice voided                                                              | `invoice` / `voided`, reverses the opened entry | 4010 Sales Revenue, 2100 Tax Payable | 1100 Accounts Receivable                                        |
+| Payment applied to the invoice                                              | `payment` / `recorded`                          | 1010 Gateway Clearing                | 1100 Accounts Receivable                                        |
+| Payment not applied (paid twice, void invoice, amount or currency mismatch) | `payment` / `recorded`                          | 1010 Gateway Clearing                | 2200 Unapplied Payments                                         |
+| Refund of an applied payment (Phase 5)                                      | `refund` / `succeeded`                          | 4020 Sales Refunds, 2100 Tax Payable | 1010 Gateway Clearing                                           |
+| Refund of an unapplied payment (Phase 5)                                    | `refund` / `succeeded`                          | 2200 Unapplied Payments              | 1010 Gateway Clearing                                           |
+
+Payments in a currency other than the ledger currency are stored but not posted; a warning is logged.
+If posting fails, the whole operation rolls back (the invoice stays a draft; the webhook is retried).
+
+### 5.1 Balances after each step (reference invoice: subtotal 179.00, tax 25.06, total 204.06)
+
+Balances are shown on each account's natural side, in cents.
+
+| After                              | 1010 Clearing | 1100 Receivable | 2100 Tax | 2200 Unapplied | 4010 Revenue |
+| ---------------------------------- | ------------- | --------------- | -------- | -------------- | ------------ |
+| Invoice opened                     | 0             | 20406           | 2506     | 0              | 17900        |
+| Payment applied                    | 20406         | 0               | 2506     | 0              | 17900        |
+| Invoice voided instead of paid     | 0             | 0               | 0        | 0              | 0            |
+| Second payment on the paid invoice | 40812         | 0               | 2506     | 20406          | 17900        |
+
+The accounting equation always holds: Assets (1010 + 1100) = Liabilities (2100 + 2200) + net revenue (4010 - 4020).
 
 ## 6. Rules that always hold
 
@@ -376,6 +395,7 @@ flowchart TD
 - Stripe's webhook is the only proof of payment.
 - One live payment link per invoice.
 - Every state change happens under a row lock.
+- Receivable (1100) equals the sum of open invoices; Gateway Clearing (1010) equals the payments received; Unapplied Payments (2200) equals the payments not applied. `php artisan ledger:verify` checks this daily.
 
 ## 7. Out of scope (v1)
 
@@ -384,12 +404,12 @@ payouts, automatic reminders, credit notes.
 
 ## 8. Implementation status
 
-| Step                                                                  | Status  |
-| --------------------------------------------------------------------- | ------- |
-| 4.1 - 4.3 Customers, products, invoices: create, open, void, discard  | ✅ Done |
-| Staff authentication with API tokens                                  | ✅ Done |
-| 4.4 - 4.6 Stable pay URL and payment links (fake and Stripe gateways) | ✅ Done |
-| 4.11 Idempotency-Key                                                  | ✅ Done |
-| 4.7 Webhooks: signature, dedupe, retries, dead-letter, replay         | ✅ Done |
-| Journal entries (section 5)                                           | Phase 4 |
-| 4.8 Refunds and automatic refund of unapplied payments                | Phase 5 |
+| Step                                                                           | Status  |
+| ------------------------------------------------------------------------------ | ------- |
+| 4.1 - 4.3 Customers, products, invoices: create, open, void, discard           | ✅ Done |
+| Staff authentication with API tokens                                           | ✅ Done |
+| 4.4 - 4.6 Stable pay URL and payment links (fake and Stripe gateways)          | ✅ Done |
+| 4.11 Idempotency-Key                                                           | ✅ Done |
+| 4.7 Webhooks: signature, dedupe, retries, dead-letter, replay                  | ✅ Done |
+| Journal entries (section 5): opened, voided, payment recorded, `ledger:verify` | ✅ Done |
+| 4.8 Refunds and automatic refund of unapplied payments                         | Phase 5 |

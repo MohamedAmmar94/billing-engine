@@ -16,3 +16,4 @@ Full walkthrough with every edge case: [docs/business-logic.md](docs/business-lo
 | [0008](0008-stripe-over-plain-http.md) | Call Stripe over plain HTTP instead of the SDK | Accepted |
 | [0009](0009-idempotency-keys.md) | Idempotency keys for money-affecting API calls | Accepted |
 | [0010](0010-webhook-processing.md) | Webhook ingestion: verify, store, acknowledge, process later | Accepted |
+| [0011](0011-ledger-posting-in-business-transaction.md) | Post journal entries inside the business transaction | Accepted |

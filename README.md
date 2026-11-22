@@ -43,8 +43,8 @@ Each row links to the test that proves it as the phases land.
 | Same event delivered twice                                 | Event-id deduplication                                                         | 3     | ✅     |
 | Handler failure                                            | Retry with exponential backoff, dead-letter queue, replay command              | 3     | ✅     |
 | Customer pays on a dead link or pays twice                 | `is_applied` flag, Unapplied Payments account, automatic refund                | 3     | ✅     |
-| Unbalanced or tampered accounting entries                  | Balance enforced in code **and** by a deferred database trigger (schema ready) | 4     | ⬜     |
-| Payment succeeded but no journal entry                     | Ledger posting in the same transaction as the payment                          | 4     | ⬜     |
+| Unbalanced or tampered accounting entries                  | Balance enforced in code **and** by a deferred database trigger (schema ready) | 4     | ✅     |
+| Payment succeeded but no journal entry                     | Ledger posting in the same transaction as the payment                          | 4     | ✅     |
 | Refunds exceeding the amount paid                          | `lockForUpdate` inside a transaction                                           | 5     | ⬜     |
 | Lost updates on balances, deadlocks                        | Consistent lock ordering, deadlock retry, multi-process tests                  | 6     | ⬜     |
 | Our records disagree with Stripe                           | Reconciliation command                                                         | 8     | ⬜     |
