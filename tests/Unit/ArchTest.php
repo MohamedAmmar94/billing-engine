@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Ledger\Models\JournalEntry;
+use App\Ledger\Models\JournalLine;
 use App\Shared\Money\Money;
+use Illuminate\Contracts\Queue\ShouldQueue;
 
 arch('every class in app/ declares strict types')
     ->expect('App')
@@ -49,3 +52,35 @@ arch('jobs end with Job')
 arch('commands end with Command')
     ->expect('App\Payments\Console')
     ->toHaveSuffix('Command');
+arch('actions are final and expose handle()')
+    ->expect(['App\Billing\Actions', 'App\Payments\Actions', 'App\Ledger\Actions'])
+    ->toBeFinal()
+    ->toHaveMethod('handle');
+
+arch('listeners end with Listener')
+    ->expect(['App\Payments\Listeners', 'App\Ledger\Listeners'])
+    ->toHaveSuffix('Listener');
+
+arch('commands end with Command')
+    ->expect(['App\Payments\Console', 'App\Shared\Idempotency\Console', 'App\Webhooks\Console', 'App\Ledger\Console'])
+    ->toHaveSuffix('Command');
+
+arch('services end with Service')
+    ->expect(['App\Webhooks\Services', 'App\Ledger\Services'])
+    ->toHaveSuffix('Service');
+
+arch('ledger DTOs end with DTO')
+    ->expect('App\Ledger\Support')
+    ->toHaveSuffix('DTO');
+
+arch('billing, payments and webhooks know nothing about the ledger')
+    ->expect(['App\Billing', 'App\Payments', 'App\Webhooks'])
+    ->not->toUse('App\Ledger');
+
+arch('ledger listeners are synchronous so they run inside the business transaction')
+    ->expect('App\Ledger\Listeners')
+    ->not->toImplement(ShouldQueue::class);
+
+arch('only the ledger writes journal entries and lines')
+    ->expect([JournalEntry::class, JournalLine::class])
+    ->toOnlyBeUsedIn('App\Ledger');
