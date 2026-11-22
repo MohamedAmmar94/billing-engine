@@ -15,4 +15,10 @@ class AccountBalance extends Model
     public $incrementing = false;
 
     protected $fillable = ['account_id', 'debit_total', 'credit_total'];
+
+    /** @var array<string, string> */
+    protected $casts = [
+        'debit_total' => 'integer',
+        'credit_total' => 'integer',
+    ];
 }
