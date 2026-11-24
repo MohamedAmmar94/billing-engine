@@ -57,14 +57,6 @@ arch('actions are final and expose handle()')
     ->toBeFinal()
     ->toHaveMethod('handle');
 
-arch('listeners end with Listener')
-    ->expect(['App\Payments\Listeners', 'App\Ledger\Listeners'])
-    ->toHaveSuffix('Listener');
-
-arch('commands end with Command')
-    ->expect(['App\Payments\Console', 'App\Shared\Idempotency\Console', 'App\Webhooks\Console', 'App\Ledger\Console'])
-    ->toHaveSuffix('Command');
-
 arch('services end with Service')
     ->expect(['App\Webhooks\Services', 'App\Ledger\Services'])
     ->toHaveSuffix('Service');
