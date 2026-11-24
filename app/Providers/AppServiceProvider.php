@@ -4,7 +4,12 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Billing\Events\InvoiceOpenedEvent;
 use App\Billing\Events\InvoiceVoidedEvent;
+use App\Ledger\Listeners\PostInvoiceOpenedListener;
+use App\Ledger\Listeners\PostInvoiceVoidedListener;
+use App\Ledger\Listeners\PostPaymentRecordedListener;
+use App\Payments\Events\PaymentRecordedEvent;
 use App\Payments\Gateway\Fake\FakeGateway;
 use App\Payments\Gateway\PaymentGatewayInterface;
 use App\Payments\Gateway\Stripe\StripeGateway;
@@ -35,7 +40,11 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Model::preventLazyLoading(! $this->app->isProduction());
+        Model::preventSilentlyDiscardingAttributes(! $this->app->isProduction());
         Event::listen(InvoiceVoidedEvent::class, CancelLiveLinksOnVoidListener::class);
+        Event::listen(InvoiceOpenedEvent::class, PostInvoiceOpenedListener::class);
+        Event::listen(InvoiceVoidedEvent::class, PostInvoiceVoidedListener::class);
+        Event::listen(PaymentRecordedEvent::class, PostPaymentRecordedListener::class);
 
     }
 }

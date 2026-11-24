@@ -12,3 +12,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('payments:expire-links')->everyFiveMinutes();
 Schedule::command('idempotency:prune')->hourly();
+Schedule::command('ledger:verify')->dailyAt('03:00');

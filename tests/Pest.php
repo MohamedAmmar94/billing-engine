@@ -1,7 +1,7 @@
 <?php
 
 declare(strict_types=1);
-
+use Database\Seeders\ChartOfAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -16,8 +16,12 @@ use Tests\TestCase;
 |
 */
 
+// pest()->extend(TestCase::class)
+//     ->use(RefreshDatabase::class)
+//     ->in('Feature');
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    ->beforeEach(fn () => $this->seed(ChartOfAccountsSeeder::class))
     ->in('Feature');
 
 /*
@@ -54,3 +58,4 @@ require_once __DIR__.'/Helpers/billing.php';
 require_once __DIR__.'/Helpers/payments.php';
 require_once __DIR__.'/Helpers/idempotency.php';
 require_once __DIR__.'/Helpers/webhooks.php';
+require_once __DIR__.'/Helpers/ledger.php';

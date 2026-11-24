@@ -15,11 +15,15 @@ class JournalEntry extends Model
     public const UPDATED_AT = null;
 
     protected $fillable = [
-        'posted_at', 'description', 'currency', 'source_type', 'source_id', 'event',
+        'posted_at', 'description', 'currency', 'source_type', 'source_id', 'event', 'reverses_entry_id',
     ];
 
     /** @var array<string, string> */
-    protected $casts = ['posted_at' => 'datetime'];
+    protected $casts = [
+        'posted_at' => 'datetime',
+        'source_id' => 'integer',
+        'reverses_entry_id' => 'integer',
+    ];
 
     /** @return HasMany<JournalLine, $this> */
     public function lines(): HasMany

@@ -13,6 +13,12 @@ class JournalLine extends Model
 
     protected $fillable = ['journal_entry_id', 'account_id', 'debit', 'credit'];
 
+    /** @var array<string, string> */
+    protected $casts = [
+        'debit' => 'integer',
+        'credit' => 'integer',
+    ];
+
     /** @return BelongsTo<JournalEntry, $this> */
     public function entry(): BelongsTo
     {
